@@ -1,0 +1,30 @@
+package com.rentsphere.config;
+
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import com.github.benmanes.caffeine.cache.Caffeine;
+
+@Configuration
+@EnableCaching
+public class CacheConfig {
+
+    @Bean
+    public CacheManager cacheManager() {
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager(
+                "organizations", "users", "properties", "buildings", "units",
+                "tenants", "agreements", "invoices", "payments",
+                "complaints", "depositDisputes", "rentIncreases", "approvalRequests"
+        );
+        cacheManager.setCaffeine(Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .maximumSize(200)
+                .recordStats());
+        return cacheManager;
+    }
+}
