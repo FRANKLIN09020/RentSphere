@@ -3,3 +3,7 @@
 .env.*
 !.env.example
 .logs/
+
+# Local editor settings and non-project research material.
+.vscode/
+local-research/
