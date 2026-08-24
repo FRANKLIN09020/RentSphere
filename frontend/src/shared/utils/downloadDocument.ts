@@ -209,6 +209,10 @@ export function downloadDepositDisputeRecord(record: RecordData, references: Ref
     ['Owner response', String(record.ownerResponse ?? '-')],
     ['Tenant notes', String(record.tenantNotes ?? '-')],
     ['Settlement due date', formatDate(record.settlementDueDate)],
+    ['Refund paid', record.refundPaidAmount == null ? '-' : formatPdfMoney(record.refundPaidAmount)],
+    ['Payment method', String(record.settlementPaymentMethod ?? '-').replace(/_/g, ' ')],
+    ['Payment reference / UTR', String(record.settlementReference ?? '-')],
+    ['Refund paid on', formatDate(record.settledOn)],
   ]
 
   doc.setFillColor(brandColors.primaryHover)
@@ -284,6 +288,16 @@ export function downloadDepositDisputeRecord(record: RecordData, references: Ref
   rows.forEach(([label, value], index) => {
     const valueLines = doc.splitTextToSize(value, 300)
     const height = Math.max(32, valueLines.length * 13 + 15)
+    if (y + height > PAGE_HEIGHT - 92) {
+      doc.addPage()
+      doc.setTextColor(DARK)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.text('DEPOSIT DISPUTE RECORD - CONTINUED', MARGIN, 50)
+      doc.setDrawColor(BORDER)
+      doc.line(MARGIN, 64, PAGE_WIDTH - MARGIN, 64)
+      y = 82
+    }
     doc.setFillColor(index % 2 === 0 ? LIGHT : '#ffffff')
     doc.roundedRect(MARGIN, y, CONTENT_WIDTH, height, 4, 4, 'F')
     doc.setTextColor(GRAY)

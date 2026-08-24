@@ -233,7 +233,7 @@ class ModuleApiIntegrationTests {
                 }
                 """.formatted(organizationId, tenantId, unitId), adminToken, 200);
 
-        JsonNode depositDispute = postJson("/deposit-disputes", """
+        String depositDisputePayload = """
                 {
                   "organizationId": "%s",
                   "tenantId": "%s",
@@ -251,7 +251,13 @@ class ModuleApiIntegrationTests {
                   "settlementDueDate": "2027-01-20",
                   "status": "UNDER_REVIEW"
                 }
-                """.formatted(organizationId, tenantId, unitId, agreementId, disputeEvidenceImage), tenantToken, 201);
+                """.formatted(organizationId, tenantId, unitId, agreementId, disputeEvidenceImage);
+        mockMvc.perform(post("/deposit-disputes")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tenantToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(depositDisputePayload))
+                .andExpect(status().isForbidden());
+        JsonNode depositDispute = postJson("/deposit-disputes", depositDisputePayload, adminToken, 201);
         String depositDisputeId = id(depositDispute);
 
         mockMvc.perform(get("/deposit-disputes/{id}/settlement-advice", depositDisputeId)

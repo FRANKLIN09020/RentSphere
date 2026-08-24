@@ -165,6 +165,10 @@ export const moduleConfigs: ModuleConfig[] = [
       { name: 'tenantNotes', label: 'Tenant notes', kind: 'textarea', full: true },
       { name: 'ownerResponse', label: 'Owner response', kind: 'textarea', full: true },
       { name: 'settlementDueDate', label: 'Settlement due date', kind: 'date' },
+      { name: 'refundPaidAmount', label: 'Refund paid to tenant', kind: 'number' },
+      { name: 'settlementPaymentMethod', label: 'Refund payment method', kind: 'select', options: ['BANK_TRANSFER', 'UPI', 'CHEQUE', 'CASH', 'OTHER'] },
+      { name: 'settlementReference', label: 'Payment reference / UTR' },
+      { name: 'settledOn', label: 'Refund paid on', kind: 'date' },
       {
         name: 'status',
         label: 'Status',

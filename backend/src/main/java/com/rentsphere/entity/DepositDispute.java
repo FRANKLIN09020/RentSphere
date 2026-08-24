@@ -53,6 +53,14 @@ public class DepositDispute extends BaseEntity {
 
     private LocalDate settlementDueDate;
 
+    private BigDecimal refundPaidAmount;
+
+    private String settlementPaymentMethod;
+
+    private String settlementReference;
+
+    private LocalDate settledOn;
+
     @Enumerated(EnumType.STRING)
     private DepositDisputeStatus status;
 }

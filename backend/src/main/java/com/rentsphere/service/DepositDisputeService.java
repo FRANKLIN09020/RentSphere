@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.rentsphere.entity.DepositDispute;
+import com.rentsphere.entity.DepositDisputeStatus;
 import com.rentsphere.repository.DepositDisputeRepository;
 
 @Service
@@ -48,6 +49,7 @@ public class DepositDisputeService extends BaseCrudService<DepositDispute> {
     @Override
     @Transactional
     public DepositDispute create(DepositDispute request) {
+        validateSettlement(request);
         DepositDispute saved = super.create(request);
         notificationService.notifyOrganizationStaff(saved.getOrganizationId(), "New deposit dispute",
                 "A deposit dispute is now " + saved.getStatus() + ".", "DISPUTE_CREATED", "/deposit-disputes");
@@ -60,11 +62,26 @@ public class DepositDisputeService extends BaseCrudService<DepositDispute> {
     @Override
     @Transactional
     public DepositDispute update(UUID id, DepositDispute request) {
+        validateSettlement(request);
         DepositDispute saved = super.update(id, request);
         notificationService.notifyTenant(saved.getTenantId(), "Deposit dispute updated",
-                "Status: " + saved.getStatus() + (saved.getSettlementDueDate() == null ? "" : ". Respond by " + saved.getSettlementDueDate()),
+                saved.getStatus() == DepositDisputeStatus.SETTLED
+                        ? "Your deposit refund of " + saved.getRefundPaidAmount() + " was recorded via "
+                                + saved.getSettlementPaymentMethod() + ". Reference: " + saved.getSettlementReference()
+                        : "Status: " + saved.getStatus() + (saved.getSettlementDueDate() == null ? "" : ". Respond by " + saved.getSettlementDueDate()),
                 "DISPUTE_ACTION", "/deposit-disputes");
         return saved;
+    }
+
+    private void validateSettlement(DepositDispute request) {
+        if (request.getStatus() != DepositDisputeStatus.SETTLED) return;
+        if (request.getRefundPaidAmount() == null || request.getRefundPaidAmount().signum() < 0
+                || request.getSettlementPaymentMethod() == null || request.getSettlementPaymentMethod().isBlank()
+                || request.getSettlementReference() == null || request.getSettlementReference().isBlank()
+                || request.getSettledOn() == null) {
+            throw new IllegalArgumentException(
+                    "Refund amount, payment method, payment reference and paid date are required to mark a dispute settled");
+        }
     }
 
     @Override
@@ -83,6 +100,10 @@ public class DepositDisputeService extends BaseCrudService<DepositDispute> {
         entity.setTenantNotes(request.getTenantNotes());
         entity.setOwnerResponse(request.getOwnerResponse());
         entity.setSettlementDueDate(request.getSettlementDueDate());
+        entity.setRefundPaidAmount(request.getRefundPaidAmount());
+        entity.setSettlementPaymentMethod(request.getSettlementPaymentMethod());
+        entity.setSettlementReference(request.getSettlementReference());
+        entity.setSettledOn(request.getSettledOn());
         entity.setStatus(request.getStatus());
     }
 }

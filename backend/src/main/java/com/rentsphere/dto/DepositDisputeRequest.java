@@ -28,5 +28,9 @@ public class DepositDisputeRequest {
     private String tenantNotes;
     private String ownerResponse;
     private LocalDate settlementDueDate;
+    private BigDecimal refundPaidAmount;
+    private String settlementPaymentMethod;
+    private String settlementReference;
+    private LocalDate settledOn;
     private DepositDisputeStatus status;
 }

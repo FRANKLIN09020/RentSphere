@@ -480,6 +480,10 @@ public class DtoMapper {
                 .tenantNotes(entity.getTenantNotes())
                 .ownerResponse(entity.getOwnerResponse())
                 .settlementDueDate(entity.getSettlementDueDate())
+                .refundPaidAmount(entity.getRefundPaidAmount())
+                .settlementPaymentMethod(entity.getSettlementPaymentMethod())
+                .settlementReference(entity.getSettlementReference())
+                .settledOn(entity.getSettledOn())
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
@@ -503,6 +507,10 @@ public class DtoMapper {
                 .tenantNotes(request.getTenantNotes())
                 .ownerResponse(request.getOwnerResponse())
                 .settlementDueDate(request.getSettlementDueDate())
+                .refundPaidAmount(request.getRefundPaidAmount())
+                .settlementPaymentMethod(request.getSettlementPaymentMethod())
+                .settlementReference(request.getSettlementReference())
+                .settledOn(request.getSettledOn())
                 .status(request.getStatus())
                 .build();
     }
@@ -523,6 +531,10 @@ public class DtoMapper {
         entity.setTenantNotes(request.getTenantNotes());
         entity.setOwnerResponse(request.getOwnerResponse());
         entity.setSettlementDueDate(request.getSettlementDueDate());
+        entity.setRefundPaidAmount(request.getRefundPaidAmount());
+        entity.setSettlementPaymentMethod(request.getSettlementPaymentMethod());
+        entity.setSettlementReference(request.getSettlementReference());
+        entity.setSettledOn(request.getSettledOn());
         entity.setStatus(request.getStatus());
     }
 
