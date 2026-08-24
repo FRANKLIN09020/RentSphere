@@ -61,7 +61,7 @@ export const ModuleRecordCard = memo(function ModuleRecordCard({
   const isFinancial = profile.category === 'financial'
   const isMaintenance = profile.category === 'maintenance'
   const isDownloadable = config.resource === 'invoices' || config.resource === 'payments' || config.resource === 'deposit-disputes'
-  const isDispute = config.resource === 'deposit-disputes' && (canEdit || canDelete)
+  const isDispute = config.resource === 'deposit-disputes'
   const live = isLiveStatus(status)
   const canPayInvoice = config.resource === 'invoices'
     && Boolean(session?.role)

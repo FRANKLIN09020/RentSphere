@@ -273,7 +273,8 @@ class ModuleApiIntegrationTests {
 
         mockMvc.perform(get("/deposit-disputes/{id}/settlement-advice", depositDisputeId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(tenantToken)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.suggestedRefund").exists());
 
         putJson("/deposit-disputes/" + depositDisputeId, """
                 {

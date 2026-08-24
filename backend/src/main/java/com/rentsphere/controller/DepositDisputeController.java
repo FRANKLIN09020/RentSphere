@@ -79,9 +79,13 @@ public class DepositDisputeController {
     }
 
     @GetMapping("/{id}/settlement-advice")
-    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','TENANT')")
     public SettlementAdviceResponse getSettlementAdvice(@PathVariable UUID id) {
         var dispute = depositDisputeService.findById(id);
+        if (SecurityUtils.hasRole("TENANT")
+                && !currentTenantService.getCurrentTenant().getId().equals(dispute.getTenantId())) {
+            throw new AccessDeniedException("Access denied to this deposit dispute advice");
+        }
         var advice = aiInsightService.recommendSettlement(
                 dispute.getDepositAmount(),
                 dispute.getDeductedAmount(),
