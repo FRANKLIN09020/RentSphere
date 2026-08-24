@@ -1,7 +1,7 @@
 ﻿param(
     [string]$SourceMarkdown = "D:\RentalFamily\docs\RentSphere-Final-Project-Report.md",
     [string]$FrontMatter = "D:\RentalFamily\mini project front page (4).docx",
-    [string]$OutputPath = "D:\RentalFamily\docs\RentSphere-Mini-Project-Report-Final.docx"
+    [string]$OutputPath = "D:\RentalFamily\docs\RentSphere-Final-Project-Report.docx"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -211,17 +211,33 @@ function Add-TechnicalDiagram([int]$index) {
         @('04-er-diagram-chen-notation.png', 'Figure 3.4 - Entity Relationship Diagram'),
         @('05-system-architecture.png', 'Figure 4.1 - Layered System Architecture'),
         @('06-uml-domain-class-diagram.png', 'Figure 4.2 - Domain Class Diagram'),
-        @('07-uml-backend-layer-diagram.png', 'Figure 4.3 - Backend Layer Class Diagram'),
-        @('08-sequence-booking-to-tenancy.png', 'Figure 4.4 - Booking-to-Tenancy Sequence'),
-        @('09-sequence-razorpay-payment.png', 'Figure 4.5 - Payment Sequence'),
-        @('10-sequence-complaint-maintenance.png', 'Figure 4.6 - Complaint and Maintenance Sequence'),
-        @('11-sequence-deposit-settlement.png', 'Figure 4.7 - Deposit Dispute Settlement Sequence'),
-        @('12-uml-use-case-diagram.png', 'Figure 4.8 - Use Case Diagram')
+        @('07-uml-backend-layer-diagram.png', 'Figure 4.4 - Backend Layer Class Diagram'),
+        @('08-sequence-booking-to-tenancy.png', 'Figure 4.5 - Booking-to-Tenancy Sequence'),
+        @('09-sequence-razorpay-payment.png', 'Figure 4.6 - Payment Sequence'),
+        @('10-sequence-complaint-maintenance.png', 'Figure 4.7 - Complaint and Maintenance Sequence'),
+        @('11-sequence-deposit-settlement.png', 'Figure 4.8 - Deposit Dispute Settlement Sequence'),
+        @('12-uml-use-case-diagram.png', 'Figure 4.9 - Use Case Diagram')
     )
     if ($index -ge 1 -and $index -le $academicDiagrams.Count) {
         $item = $academicDiagrams[$index - 1]
         $path = Join-Path 'D:\RentalFamily\docs\academic-diagrams' $item[0]
         Insert-DiagramFile $path $item[1]
+        if ($index -eq 4) {
+            $detailSheets = @(
+                @('04b-er-attributes-portfolio.png', 'Figure 3.5 - ER Attributes: Portfolio and Identity'),
+                @('04c-er-attributes-tenancy-finance.png', 'Figure 3.6 - ER Attributes: Tenancy and Finance'),
+                @('04d-er-attributes-operations.png', 'Figure 3.7 - ER Attributes: Complaints and Legal Operations'),
+                @('04e-er-attributes-workflow.png', 'Figure 3.8 - ER Attributes: Approvals and Notifications')
+            )
+            foreach ($sheet in $detailSheets) {
+                $selection.InsertBreak(7)
+                Insert-DiagramFile (Join-Path 'D:\RentalFamily\docs\academic-diagrams' $sheet[0]) $sheet[1]
+            }
+        }
+        if ($index -eq 6) {
+            $selection.InsertBreak(7)
+            Insert-DiagramFile (Join-Path 'D:\RentalFamily\docs\academic-diagrams' '06b-uml-operational-class-diagram.png') 'Figure 4.3 - Operational Class Diagram'
+        }
         return
     }
     switch ($index) {

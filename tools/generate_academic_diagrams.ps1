@@ -53,6 +53,43 @@ function Flow([int]$x1,[int]$y1,[int]$x2,[int]$y2,[string]$label='') {
     "<line x1='$x1' y1='$y1' x2='$x2' y2='$y2' class='flow'/><text x='$mx' y='$my' text-anchor='middle' class='tiny'>$(Escape $label)</text>"
 }
 
+function New-ChenAttributeSheet([string]$file, [string]$title, $entities) {
+    $width = 2400
+    $panelTop = 105
+    $panelGap = 28
+    $panelHeights = @()
+    foreach ($entry in $entities.GetEnumerator()) {
+        $rows = [Math]::Ceiling($entry.Value.Count / 5.0)
+        $panelHeights += 130 + $rows * 105
+    }
+    $height = $panelTop + (($panelHeights | Measure-Object -Sum).Sum) + ($entities.Count - 1) * $panelGap + 55
+    $body = Title $title 'Chen attribute notation: underlined ovals are primary keys; [FK] identifies foreign keys'
+    $y = $panelTop
+    $entityIndex = 0
+    foreach ($entry in $entities.GetEnumerator()) {
+        $attributes = $entry.Value
+        $panelHeight = $panelHeights[$entityIndex]
+        $body += "<rect x='45' y='$y' width='2310' height='$panelHeight' rx='18' fill='#f8fafc' stroke='#cbd5e1' stroke-width='2'/>"
+        $entityX = 1030
+        $entityY = $y + 25
+        $body += Rect $entityX $entityY 340 68 $entry.Key
+        for ($i = 0; $i -lt $attributes.Count; $i++) {
+            $column = $i % 5
+            $row = [Math]::Floor($i / 5)
+            $cx = 250 + $column * 475
+            $cy = $y + 155 + $row * 105
+            $raw = [string]$attributes[$i]
+            $isKey = $raw.StartsWith('id [PK]')
+            $rx = [Math]::Min(210, [Math]::Max(120, 72 + $raw.Length * 5))
+            $body += "<line x1='1200' y1='$($entityY+68)' x2='$cx' y2='$($cy-35)' stroke='#64748b' stroke-width='1.8'/>"
+            $body += Oval $cx $cy $rx 35 $raw $isKey
+        }
+        $y += $panelHeight + $panelGap
+        $entityIndex++
+    }
+    Write-Svg $file $body $width $height
+}
+
 # 01 - DFD Level 0
 $b = Title 'DATA FLOW DIAGRAM - LEVEL 0' 'RentSphere context diagram'
 $b += Rect 55 190 250 90 'Administrator'
@@ -108,6 +145,30 @@ $b+=Oval 180 890 72 32 'tenant_id' $true;$b+=Oval 70 590 62 32 'user_id' $true;$
 $b+="<line x1='105' y1='137' x2='140' y2='160' class='association'/><line x1='650' y1='137' x2='670' y2='160' class='association'/><line x1='1150' y1='137' x2='1180' y2='160' class='association'/><line x1='1490' y1='437' x2='1480' y2='445' class='association'/><line x1='1490' y1='488' x2='1480' y2='485' class='association'/><line x1='600' y1='858' x2='600' y2='770' class='association'/><line x1='180' y1='858' x2='180' y2='770' class='association'/><line x1='70' y1='558' x2='115' y2='500' class='association'/><line x1='1000' y1='858' x2='1000' y2='770' class='association'/><line x1='1400' y1='858' x2='1400' y2='770' class='association'/><text x='325' y='180' class='tiny'>1</text><text x='525' y='180' class='tiny'>N</text><text x='815' y='180' class='tiny'>1</text><text x='1035' y='180' class='tiny'>N</text><text x='1285' y='265' class='tiny'>1</text><text x='1345' y='390' class='tiny'>N</text><text x='470' y='720' class='tiny'>1</text><text x='485' y='720' class='tiny'>N</text><text x='880' y='720' class='tiny'>1</text><text x='885' y='720' class='tiny'>N</text><text x='1280' y='720' class='tiny'>1</text><text x='1285' y='720' class='tiny'>N</text>"
 Write-Svg '04-er-diagram-chen-notation' $b 1600 1000
 
+$audit = @('created_at','updated_at','created_by','updated_by','deleted_by','deleted_at','deleted')
+New-ChenAttributeSheet '04b-er-attributes-portfolio' 'ER ATTRIBUTES - PORTFOLIO AND IDENTITY' ([ordered]@{
+    ORGANIZATION = @('id [PK]','name','address','phone','email') + $audit
+    USER = @('id [PK]','organization_id [FK]','email','password_hash','name','phone','profile_image_url','role') + $audit
+    PROPERTY = @('id [PK]','organization_id [FK]','owner_id [FK]','name','address','city','state','amenities','image_url') + $audit
+    BUILDING = @('id [PK]','organization_id [FK]','property_id [FK]','name','floors','image_url') + $audit
+    UNIT = @('id [PK]','organization_id [FK]','building_id [FK]','unit_number','rent_amount','status','image_url') + $audit
+})
+New-ChenAttributeSheet '04c-er-attributes-tenancy-finance' 'ER ATTRIBUTES - TENANCY AND FINANCE' ([ordered]@{
+    TENANT = @('id [PK]','organization_id [FK]','user_id [FK]','unit_id [FK]','full_name','phone','emergency_contact','kyc_status','id_proof_url','address_proof_url') + $audit
+    AGREEMENT = @('id [PK]','organization_id [FK]','tenant_id [FK]','unit_id [FK]','start_date','end_date','rent_amount','status') + $audit
+    INVOICE = @('id [PK]','organization_id [FK]','tenant_id [FK]','agreement_id [FK]','amount','due_date','status') + $audit
+    PAYMENT = @('id [PK]','organization_id [FK]','invoice_id [FK]','razorpay_order_id','razorpay_payment_id','amount','status','payment_date') + $audit
+})
+New-ChenAttributeSheet '04d-er-attributes-operations' 'ER ATTRIBUTES - COMPLAINTS AND LEGAL OPERATIONS' ([ordered]@{
+    COMPLAINT = @('id [PK]','organization_id [FK]','tenant_id [FK]','unit_id [FK]','title','description','status','ai_priority','ai_category','ai_note') + $audit
+    DEPOSIT_DISPUTE = @('id [PK]','organization_id [FK]','tenant_id [FK]','unit_id [FK]','agreement_id [FK]','deposit_amount','deducted_amount','owner_repair_estimate','market_repair_estimate','proposed_settlement_amount','deduction_reason','evidence_url','tenant_notes','owner_response','settlement_due_date','refund_paid_amount','settlement_payment_method','settlement_reference','settled_on','status') + $audit
+    RENT_INCREASE = @('id [PK]','organization_id [FK]','tenant_id [FK]','unit_id [FK]','agreement_id [FK]','previous_rent','proposed_rent','notice_date','effective_date','notification_scheduled_at','notification_sent_at','reason','tenant_response','owner_notes','status') + $audit
+})
+New-ChenAttributeSheet '04e-er-attributes-workflow' 'ER ATTRIBUTES - APPROVALS AND NOTIFICATIONS' ([ordered]@{
+    APPROVAL_REQUEST = @('id [PK]','organization_id [FK]','type','subject','details','requester_email','approver_email','status','decision_comment','decided_at') + $audit
+    NOTIFICATION = @('id [PK]','organization_id [FK]','recipient_email','title','detail','type','target_path','created_at','read_at')
+})
+
 # 05 - Architecture
 $b = Title 'SYSTEM ARCHITECTURE DIAGRAM' 'Layered deployment and external integrations'
 $layers=@(@(210,135,1180,105,'Presentation Layer','React 19 | TypeScript | Material UI | Vite'),@(210,300,1180,105,'API and Security Layer','Spring REST | JWT | Role authorization | Validation'),@(210,465,1180,105,'Business Service Layer','Booking | Billing | Complaints | Disputes | Notifications | AI'),@(210,630,1180,105,'Persistence Layer','Spring Data JPA | Repositories | Transactions | Audit fields'),@(210,795,1180,105,'Data Layer','PostgreSQL / Supabase'))
@@ -138,6 +199,18 @@ $b+=ClassBox 1015 560 270 'Payment' @('- id: UUID','- invoiceId: UUID','- gatewa
 $assocs=@(@(310,230,365,230,'1','*'),@(635,230,690,230,'1','*'),@(960,230,1015,230,'1','*'),@(175,420,175,560,'1','1'),@(500,420,500,560,'1','*'),@(825,420,825,560,'1','*'),@(1150,420,1150,560,'1','*'),@(310,670,365,670,'1','*'),@(635,670,690,670,'1','*'),@(960,670,1015,670,'1','*'))
 foreach($a in $assocs){$b+="<line x1='$($a[0])' y1='$($a[1])' x2='$($a[2])' y2='$($a[3])' class='association'/><text x='$($a[0]+5)' y='$($a[1]-8)' class='tiny'>$($a[4])</text><text x='$($a[2]-15)' y='$($a[3]-8)' class='tiny'>$($a[5])</text>"}
 Write-Svg '06-uml-domain-class-diagram' $b
+
+# 06b - Operational UML class diagram
+$b=Title 'UML OPERATIONAL CLASS DIAGRAM' 'Complaints, disputes, rent notices, approvals and notifications'
+$b+=ClassBox 45 140 285 'Complaint' @('- tenantId: UUID','- unitId: UUID','- title: String','- status: ComplaintStatus','- aiPriority: String') @('+ triage()','+ updateStatus()')
+$b+=ClassBox 360 140 320 'DepositDispute' @('- tenantId: UUID','- agreementId: UUID','- depositAmount: Decimal','- deductedAmount: Decimal','- refundPaidAmount: Decimal','- status: DisputeStatus') @('+ proposeSettlement()','+ recordRefund()')
+$b+=ClassBox 710 140 300 'RentIncrease' @('- tenantId: UUID','- agreementId: UUID','- previousRent: Decimal','- proposedRent: Decimal','- effectiveDate: Date','- status: IncreaseStatus') @('+ scheduleNotice()','+ recordResponse()')
+$b+=ClassBox 1040 140 300 'ApprovalRequest' @('- organizationId: UUID','- requesterEmail: String','- approverEmail: String','- type: String','- status: ApprovalStatus') @('+ approve()','+ reject()')
+$b+=ClassBox 560 620 320 'Notification' @('- organizationId: UUID','- recipientEmail: String','- title: String','- type: String','- targetPath: String','- readAt: DateTime') @('+ markRead()','+ streamToUser()')
+$b+=ClassBox 80 620 280 'Tenant' @('- id: UUID','- userId: UUID','- unitId: UUID','- kycStatus: String') @('+ viewOwnRecords()')
+$b+=ClassBox 1080 620 280 'Organization' @('- id: UUID','- name: String') @('+ notifyStaff()')
+$b+="<line x1='187' y1='390' x2='220' y2='620' class='association'/><text x='205' y='515' class='tiny'>1 raises *</text><line x1='520' y1='414' x2='300' y2='620' class='association'/><text x='385' y='515' class='tiny'>1 owns *</text><line x1='860' y1='414' x2='330' y2='650' class='association'/><text x='570' y='535' class='tiny'>1 receives *</text><line x1='1190' y1='390' x2='1220' y2='620' class='association'/><text x='1200' y='515' class='tiny'>* scoped to 1</text><line x1='560' y1='740' x2='360' y2='740' class='association'/><text x='440' y='725' class='tiny'>delivered to</text><line x1='880' y1='740' x2='1080' y2='740' class='association'/><text x='950' y='725' class='tiny'>scoped by</text>"
+Write-Svg '06b-uml-operational-class-diagram' $b
 
 # 07 - Backend UML package/class diagram
 $b=Title 'UML BACKEND LAYER DIAGRAM' 'Controller-service-repository collaboration'
@@ -173,4 +246,4 @@ $links=@(@(170,240,375,220),@(170,240,655,220),@(170,240,935,220),@(170,550,375,
 foreach($l in $links){$b+="<line x1='$($l[0])' y1='$($l[1])' x2='$($l[2])' y2='$($l[3])' class='association'/>"}
 Write-Svg '12-uml-use-case-diagram' $b
 
-Write-Output "Generated 12 academic SVG diagrams in $OutputDirectory"
+Write-Output "Generated the complete academic SVG diagram set in $OutputDirectory"
