@@ -90,6 +90,23 @@ function Insert-DiagramSvg([string]$svg, [string]$caption) {
     $selection.ParagraphFormat.Alignment = 3
 }
 
+function Insert-DiagramFile([string]$path, [string]$caption) {
+    $selection.ParagraphFormat.Alignment = 1
+    $picture = $selection.InlineShapes.AddPicture($path, $false, $true, $selection.Range)
+    $picture.LockAspectRatio = -1
+    if ($picture.Width -gt 485) { $picture.Width = 485 }
+    $selection.SetRange($picture.Range.End, $picture.Range.End)
+    $selection.TypeParagraph()
+    $selection.Style = 'Caption'
+    $selection.Font.Name = 'Times New Roman'
+    $selection.Font.Size = 10
+    $selection.Font.Italic = $true
+    $selection.TypeText($caption)
+    $selection.TypeParagraph()
+    $selection.Style = 'Normal'
+    $selection.ParagraphFormat.Alignment = 3
+}
+
 function Add-MarkdownTable([System.Collections.Generic.List[string]]$lines) {
     if ($lines.Count -lt 2) { return }
     $parsed = @()
@@ -187,6 +204,26 @@ function Add-MatrixDiagram([string[][]]$rows, [string]$caption) {
 }
 
 function Add-TechnicalDiagram([int]$index) {
+    $academicDiagrams = @(
+        @('01-dfd-level-0-context.png', 'Figure 3.1 - Level 0 Context Diagram'),
+        @('02-dfd-level-1-processes.png', 'Figure 3.2 - Level 1 Data Flow Diagram'),
+        @('03-dfd-level-2-payment.png', 'Figure 3.3 - Level 2 Payment Data Flow'),
+        @('04-er-diagram-chen-notation.png', 'Figure 3.4 - Entity Relationship Diagram'),
+        @('05-system-architecture.png', 'Figure 4.1 - Layered System Architecture'),
+        @('06-uml-domain-class-diagram.png', 'Figure 4.2 - Domain Class Diagram'),
+        @('07-uml-backend-layer-diagram.png', 'Figure 4.3 - Backend Layer Class Diagram'),
+        @('08-sequence-booking-to-tenancy.png', 'Figure 4.4 - Booking-to-Tenancy Sequence'),
+        @('09-sequence-razorpay-payment.png', 'Figure 4.5 - Payment Sequence'),
+        @('10-sequence-complaint-maintenance.png', 'Figure 4.6 - Complaint and Maintenance Sequence'),
+        @('11-sequence-deposit-settlement.png', 'Figure 4.7 - Deposit Dispute Settlement Sequence'),
+        @('12-uml-use-case-diagram.png', 'Figure 4.8 - Use Case Diagram')
+    )
+    if ($index -ge 1 -and $index -le $academicDiagrams.Count) {
+        $item = $academicDiagrams[$index - 1]
+        $path = Join-Path 'D:\RentalFamily\docs\academic-diagrams' $item[0]
+        Insert-DiagramFile $path $item[1]
+        return
+    }
     switch ($index) {
         1 { Add-MatrixDiagram @(
                 @('Administrator', 'RentSphere Platform', 'PostgreSQL / Supabase'),
