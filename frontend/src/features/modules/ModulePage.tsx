@@ -76,6 +76,9 @@ export function ModulePage({ config }: { config: ModuleConfig }) {
       if (session?.role === 'TENANT' && config.resource === 'rent-increases') {
         return field.name === 'tenantResponse' || field.name === 'status'
       }
+      if (session?.role === 'TENANT' && config.resource === 'complaints') {
+        return field.name === 'title' || field.name === 'description'
+      }
       if (!editing && field.name === 'organizationId' && session?.organizationId && config.resource !== 'organizations') {
         return false
       }

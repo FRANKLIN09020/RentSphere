@@ -62,23 +62,37 @@ export function useModuleData(config: ModuleConfig) {
     }
 
     async function loadReferences() {
+      if (session?.role === 'TENANT') {
+        const [profileResult, tenantResult] = await Promise.allSettled([
+          http.get<RecordData>('/auth/me'),
+          http.get<RecordData>('/tenants/me'),
+        ])
+        if (cancelled) return
+        const profile = profileResult.status === 'fulfilled' ? profileResult.value.data : undefined
+        const tenant = tenantResult.status === 'fulfilled' ? tenantResult.value.data : undefined
+        const organizationId = profile?.organizationId ?? tenant?.organizationId
+        let unit: RecordData | undefined
+        if (tenant?.unitId) {
+          try {
+            unit = (await http.get<RecordData>(`/units/${tenant.unitId}`)).data
+          } catch {
+            unit = undefined
+          }
+        }
+        if (!cancelled) {
+          setReferences({
+            organizations: organizationId ? [{
+              id: organizationId,
+              name: profile?.organizationName ?? 'My organization',
+            }] : [],
+            tenants: tenant ? [tenant] : [],
+            units: unit ? [unit] : [],
+          })
+        }
+        return
+      }
       const results = await Promise.allSettled(
         referenceResources.map(async (resource) => {
-          const isOwnTenant = resource === 'tenants' && session?.role === 'TENANT'
-          if (isOwnTenant) {
-            const response = await http.get<RecordData>(`/tenants/me`)
-            return ['tenants', [response.data]] as const
-          }
-          const isOwnOrganization = resource === 'organizations'
-            && session?.role === 'TENANT'
-            && Boolean(session.organizationId)
-          if (isOwnOrganization) {
-            const response = await http.get<RecordData>('/auth/me')
-            return ['organizations', [{
-              id: session.organizationId,
-              name: response.data.organizationName ?? 'My organization',
-            }]] as const
-          }
           const response = await http.get<RecordData[]>(`/${resource}`)
           return [resource, response.data] as const
         }),
