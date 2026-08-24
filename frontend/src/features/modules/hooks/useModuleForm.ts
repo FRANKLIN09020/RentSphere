@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { FormEvent } from 'react'
 import { getErrorMessage, http } from '../../../shared/api/http'
 import type { RecordData } from '../types'
@@ -23,9 +23,9 @@ export function useModuleForm(resource: string, onSuccess: () => void, defaultVa
     setError('')
   }
 
-  function setField(name: string, value: string) {
+  const setField = useCallback((name: string, value: string) => {
     setForm((current) => ({ ...current, [name]: value }))
-  }
+  }, [])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()

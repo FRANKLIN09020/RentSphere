@@ -7,6 +7,11 @@ import { getReferenceLabel, getReferenceResource, getReferenceRecordLabel } from
 type ReferenceData = Record<string, RecordData[]>
 
 function getRelationLabel(fieldName: string) {
+  const labels: Record<string, string> = {
+    organizationId: 'Organization',
+    ownerId: 'Owner',
+  }
+  if (labels[fieldName]) return labels[fieldName]
   return fieldName
     .replace(/Id$/, ' ID')
     .replace(/([A-Z])/g, ' $1')
@@ -51,6 +56,12 @@ export function ModuleField({
     }
     if (field.name === 'propertyId' && form.organizationId) {
       return options.filter((item) => String(item.organizationId) === String(form.organizationId))
+    }
+    if (field.name === 'ownerId') {
+      return options.filter((item) =>
+        String(item.role ?? '').toUpperCase() === 'OWNER'
+        && (!form.organizationId || String(item.organizationId) === String(form.organizationId)),
+      )
     }
     if (field.name === 'buildingId' && form.propertyId) {
       return options.filter((item) => String(item.propertyId) === String(form.propertyId))
@@ -215,5 +226,4 @@ function getMinDateString() {
   const day = String(today.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
-
 

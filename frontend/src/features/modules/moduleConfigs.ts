@@ -35,8 +35,8 @@ export const moduleConfigs: ModuleConfig[] = [
     description: 'Property information, photos, location, and amenities.',
     tableColumns: ['imageUrl', 'name', 'address', 'city', 'state', 'amenities'],
     fields: [
-      { name: 'organizationId', label: 'Organization ID', ...uuid },
-      { name: 'ownerId', label: 'Owner ID', ...uuid },
+      { name: 'organizationId', label: 'Organization', required: true, ...uuid },
+      { name: 'ownerId', label: 'Owner', required: true, ...uuid },
       { name: 'name', label: 'Name', required: true },
       { name: 'address', label: 'Address', required: true, full: true },
       { name: 'city', label: 'City' },

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Card, Grid, MenuItem, Stack, TablePagination, TextField, Typography } from '@mui/material'
 import { useAuth } from '../../shared/auth/useAuth'
 import { canCreateModule, canEditModule, canManageModule } from './moduleAccess'
@@ -33,6 +33,23 @@ export function ModulePage({ config }: { config: ModuleConfig }) {
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(8)
+
+  useEffect(() => {
+    if (config.resource !== 'properties') return
+
+    const organizationId = String(form.organizationId ?? '')
+    const matchingOwners = (references.users ?? []).filter((user) =>
+      String(user.role ?? '').toUpperCase() === 'OWNER'
+      && String(user.organizationId ?? '') === organizationId,
+    )
+    const currentOwnerIsValid = matchingOwners.some((owner) => String(owner.id) === String(form.ownerId ?? ''))
+
+    if (matchingOwners.length === 1 && !currentOwnerIsValid) {
+      setField('ownerId', String(matchingOwners[0].id))
+    } else if ((!organizationId || !currentOwnerIsValid) && form.ownerId) {
+      setField('ownerId', '')
+    }
+  }, [config.resource, form.organizationId, form.ownerId, references.users, setField])
 
   const filterFields = useMemo(() => config.fields.filter((field) =>
     field.kind === 'select' && records.some((record) => record[field.name] != null && record[field.name] !== ''),
