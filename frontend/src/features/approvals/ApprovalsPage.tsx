@@ -42,7 +42,6 @@ export function ApprovalsPage() {
   const { session } = useAuth()
   const isTenant = session?.role === 'TENANT'
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([])
-  const [comment, setComment] = useState('')
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -80,8 +79,7 @@ export function ApprovalsPage() {
 
   async function decide(id: string, action: 'approve' | 'reject') {
     try {
-      await http.post(`/approvals/${id}/${action}`, { comment })
-      setComment('')
+      await http.post(`/approvals/${id}/${action}`, {})
       await loadApprovals()
     } catch (err) {
       setError(getErrorMessage(err))
@@ -112,7 +110,6 @@ export function ApprovalsPage() {
                     <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadApprovals}>Refresh</Button>
                   </Stack>
                 </Stack>
-                {!isTenant && <TextField label="Decision comment" value={comment} onChange={(event) => setComment(event.target.value)} />}
                 <TableContainer>
                   <Table size="small">
                     <TableHead>
