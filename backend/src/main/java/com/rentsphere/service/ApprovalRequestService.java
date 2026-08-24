@@ -18,6 +18,8 @@ import com.rentsphere.entity.UserRole;
 import com.rentsphere.exception.InvalidApprovalStateException;
 import com.rentsphere.exception.ResourceNotFoundException;
 import com.rentsphere.repository.ApprovalRequestRepository;
+import com.rentsphere.repository.TenantRepository;
+import com.rentsphere.repository.UserRepository;
 import com.rentsphere.security.SecurityUtils;
 
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,8 @@ import lombok.RequiredArgsConstructor;
 public class ApprovalRequestService {
 
     private final ApprovalRequestRepository approvalRequestRepository;
+    private final TenantRepository tenantRepository;
+    private final UserRepository userRepository;
     private final EmailNotificationService emailNotificationService;
     private final NotificationService notificationService;
 
@@ -100,12 +104,35 @@ public class ApprovalRequestService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "approvalRequests", allEntries = true)
+    @CacheEvict(cacheNames = {"approvalRequests", "tenants", "users"}, allEntries = true)
     public ApprovalRequest approve(UUID id, ApprovalDecisionRequest request) {
         ApprovalRequest approvalRequest = decide(id, ApprovalStatus.APPROVED, request);
+        linkApartmentRequesterToOrganization(approvalRequest);
         emailNotificationService.sendApprovalDecided(approvalRequest);
         notificationService.notifyUser(approvalRequest.getOrganizationId(), approvalRequest.getRequesterEmail(), "Request approved", approvalRequest.getSubject(), "APPROVAL_APPROVED", "/approvals");
         return approvalRequest;
+    }
+
+    /**
+     * Makes an approved apartment requester available to the organization's
+     * agreement workflow. Unit assignment happens when the agreement is created,
+     * so a prospective tenant is not prematurely treated as an occupant.
+     */
+    private void linkApartmentRequesterToOrganization(ApprovalRequest approvalRequest) {
+        if (!"APARTMENT_VISIT".equalsIgnoreCase(approvalRequest.getType())
+                || approvalRequest.getOrganizationId() == null) {
+            return;
+        }
+
+        userRepository.findByEmail(approvalRequest.getRequesterEmail()).ifPresent(user -> {
+            user.setOrganizationId(approvalRequest.getOrganizationId());
+            userRepository.save(user);
+
+            tenantRepository.findByUserId(user.getId()).stream().findFirst().ifPresent(tenant -> {
+                tenant.setOrganizationId(approvalRequest.getOrganizationId());
+                tenantRepository.save(tenant);
+            });
+        });
     }
 
     @Transactional

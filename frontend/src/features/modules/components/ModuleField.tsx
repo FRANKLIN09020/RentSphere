@@ -81,8 +81,8 @@ export function ModuleField({
     if (field.name === 'unitId' && form.buildingId) {
       return options.filter((item) => String(item.buildingId) === String(form.buildingId))
     }
-    if (field.name === 'tenantId' && form.unitId) {
-      return options.filter((item) => String(item.unitId) === String(form.unitId))
+    if (field.name === 'tenantId' && form.organizationId) {
+      return options.filter((item) => String(item.organizationId) === String(form.organizationId))
     }
     return options
   }
