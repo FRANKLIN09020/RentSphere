@@ -160,6 +160,18 @@ export function AppLayout() {
   const financeLinks = financeModules.map(toLink).filter((link): link is NavItem => link !== null)
   const operationsLinks = operationsModules.map(toLink).filter((link): link is NavItem => link !== null)
   const platformLinks = platformModules.map(toLink).filter((link): link is NavItem => link !== null)
+  const actionPaths = useMemo(() => new Set(
+    notifications
+      .filter((notification) => !notification.read && notification.targetPath)
+      .map((notification) => notification.targetPath as string),
+  ), [notifications])
+
+  const handleSidebarNavigate = (path: string) => {
+    if (path === '/') navigate('/')
+    notifications
+      .filter((notification) => !notification.read && notification.targetPath === path)
+      .forEach((notification) => markRead(notification.id))
+  }
 
   const navSections: NavSection[] = [
     { label: 'Main', items: mainLinks },
@@ -205,7 +217,8 @@ export function AppLayout() {
         >
           <SidebarContent
             navSections={navSections}
-            onNavigate={() => navigate('/')}
+            onNavigate={handleSidebarNavigate}
+            actionPaths={actionPaths}
             collapsed={collapsed}
             onToggleCollapse={() => setCollapsed((prev) => !prev)}
           />
@@ -518,7 +531,8 @@ export function AppLayout() {
       >
         <SidebarContent
           navSections={navSections}
-          onNavigate={() => setMobileOpen(false)}
+          onNavigate={(path) => { handleSidebarNavigate(path); setMobileOpen(false) }}
+          actionPaths={actionPaths}
           onClose={() => setMobileOpen(false)}
           collapsed={false}
         />
@@ -532,12 +546,14 @@ export function AppLayout() {
 function SidebarContent({
   navSections,
   onNavigate,
+  actionPaths,
   onClose,
   collapsed,
   onToggleCollapse,
 }: {
   navSections: NavSection[]
-  onNavigate: () => void
+  onNavigate: (path: string) => void
+  actionPaths: Set<string>
   onClose?: () => void
   collapsed: boolean
   onToggleCollapse?: () => void
@@ -587,7 +603,7 @@ function SidebarContent({
           '@keyframes logoIn': { from: { opacity: 0, transform: 'translateY(-10px)' }, to: { opacity: 1, transform: 'none' } },
         }}
       >
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', cursor: 'pointer', minWidth: 0 }} onClick={onNavigate}>
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', cursor: 'pointer', minWidth: 0 }} onClick={() => onNavigate('/')}>
           <Avatar
             sx={{
               bgcolor: 'primary.main',
@@ -647,7 +663,7 @@ function SidebarContent({
                 )}
                 <List dense disablePadding sx={{ mt: collapsed ? 0 : 0.6 }}>
                   {section.items.map((link, index) => (
-                    <SidebarLink key={link.to} link={link} onNavigate={onNavigate} delay={delayBase + 0.08 + index * 0.055} collapsed={collapsed} />
+                    <SidebarLink key={link.to} link={link} onNavigate={onNavigate} highlighted={actionPaths.has(link.to)} delay={delayBase + 0.08 + index * 0.055} collapsed={collapsed} />
                   ))}
                 </List>
               </Box>
@@ -708,14 +724,14 @@ function SidebarContent({
   )
 }
 
-function SidebarLink({ link, onNavigate, delay = 0, collapsed }: { link: NavItem; onNavigate: () => void; delay?: number; collapsed: boolean }) {
+function SidebarLink({ link, onNavigate, highlighted, delay = 0, collapsed }: { link: NavItem; onNavigate: (path: string) => void; highlighted: boolean; delay?: number; collapsed: boolean }) {
   const { t } = useLanguage()
   const button = (
     <ListItemButton
       component={NavLink}
       to={link.to}
       end={link.to === '/'}
-      onClick={onNavigate}
+      onClick={() => onNavigate(link.to)}
       sx={{
         borderRadius: 2,
         color: '#cbd5e1',
@@ -728,6 +744,16 @@ function SidebarLink({ link, onNavigate, delay = 0, collapsed }: { link: NavItem
         transition: 'background-color 0.25s ease, transform 0.25s cubic-bezier(.22,1,.36,1), color 0.25s ease, box-shadow 0.25s ease',
         animation: 'linkIn 0.5s cubic-bezier(.22,1,.36,1) both',
         animationDelay: `${delay}s`,
+        ...(highlighted && {
+          color: '#ffffff',
+          bgcolor: 'rgba(245, 158, 11, 0.2)',
+          boxShadow: 'inset 0 0 0 1px rgba(251, 191, 36, 0.55), 0 0 18px rgba(245, 158, 11, 0.18)',
+          animation: 'actionPulse 1.8s ease-in-out infinite',
+          '@keyframes actionPulse': {
+            '0%, 100%': { boxShadow: 'inset 0 0 0 1px rgba(251, 191, 36, 0.45), 0 0 8px rgba(245, 158, 11, 0.12)' },
+            '50%': { boxShadow: 'inset 0 0 0 1px rgba(251, 191, 36, 0.85), 0 0 22px rgba(245, 158, 11, 0.32)' },
+          },
+        }),
         '@keyframes linkIn': { from: { opacity: 0, transform: 'translateX(-16px)' }, to: { opacity: 1, transform: 'none' } },
         '&::before': {
           content: '""',

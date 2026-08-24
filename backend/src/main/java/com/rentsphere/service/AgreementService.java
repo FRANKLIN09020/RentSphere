@@ -19,6 +19,7 @@ import com.rentsphere.repository.AgreementRepository;
 import com.rentsphere.repository.InvoiceRepository;
 import com.rentsphere.repository.TenantRepository;
 import com.rentsphere.repository.UnitRepository;
+import com.rentsphere.repository.UserRepository;
 import com.rentsphere.exception.ResourceNotFoundException;
 import com.rentsphere.security.SecurityUtils;
 
@@ -29,14 +30,19 @@ public class AgreementService extends BaseCrudService<Agreement> {
     private final TenantRepository tenantRepository;
     private final UnitRepository unitRepository;
     private final InvoiceRepository invoiceRepository;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public AgreementService(AgreementRepository agreementRepository, TenantRepository tenantRepository,
-            UnitRepository unitRepository, InvoiceRepository invoiceRepository) {
+            UnitRepository unitRepository, InvoiceRepository invoiceRepository,
+            UserRepository userRepository, NotificationService notificationService) {
         super(agreementRepository, "Agreement");
         this.agreementRepository = agreementRepository;
         this.tenantRepository = tenantRepository;
         this.unitRepository = unitRepository;
         this.invoiceRepository = invoiceRepository;
+        this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -125,6 +131,15 @@ public class AgreementService extends BaseCrudService<Agreement> {
                     .dueDate(agreement.getStartDate())
                     .status(InvoiceStatus.PENDING)
                     .build());
+            if (tenant.getUserId() != null) {
+                userRepository.findById(tenant.getUserId()).ifPresent(user -> notificationService.notifyUser(
+                        agreement.getOrganizationId(),
+                        user.getEmail(),
+                        "Rent payment ready",
+                        "Your agreement is active and the first rent invoice is ready. Open Payments to pay now.",
+                        "PAYMENT_ACTION_REQUIRED",
+                        "/payments"));
+            }
         }
     }
 
