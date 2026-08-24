@@ -23,7 +23,6 @@ import com.rentsphere.dto.DepositDisputeRequest;
 import com.rentsphere.dto.DepositDisputeResponse;
 import com.rentsphere.dto.DtoMapper;
 import com.rentsphere.dto.SettlementAdviceResponse;
-import com.rentsphere.entity.DepositDisputeStatus;
 import com.rentsphere.security.SecurityUtils;
 import com.rentsphere.service.AiInsightService;
 import com.rentsphere.service.CurrentTenantService;
@@ -43,16 +42,10 @@ public class DepositDisputeController {
     private final AiInsightService aiInsightService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
     @ResponseStatus(HttpStatus.CREATED)
     public DepositDisputeResponse createDepositDispute(@Valid @RequestBody DepositDisputeRequest request) {
         var entity = DtoMapper.toEntity(request);
-        if (SecurityUtils.hasRole("TENANT")) {
-            var tenant = currentTenantService.getCurrentTenant();
-            entity.setOrganizationId(tenant.getOrganizationId());
-            entity.setTenantId(tenant.getId());
-            entity.setUnitId(tenant.getUnitId());
-            entity.setStatus(DepositDisputeStatus.OPEN);
-        }
         return DtoMapper.toResponse(depositDisputeService.create(entity));
     }
 

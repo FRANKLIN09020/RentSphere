@@ -6,7 +6,7 @@ import { DeleteIcon, DownloadIcon, EditIcon, LocationIcon } from '../../../share
 import { getModuleProfile, getCategoryAccent } from '../moduleProfile'
 import { getInitials, formatDate, toTitle, getStatusColor, formatDetail, formatMoney } from '../../../shared/utils/format'
 import { getReferenceLabel } from '../referenceUtils'
-import { downloadFinancialRecord } from '../../../shared/utils/downloadDocument'
+import { downloadDepositDisputeRecord, downloadFinancialRecord } from '../../../shared/utils/downloadDocument'
 import { PayNowButton } from '../../payments/PayNowButton'
 import { SettlementAdviceButton } from '../../disputes/SettlementAdviceButton'
 import { useAuth } from '../../../shared/auth/useAuth'
@@ -60,7 +60,7 @@ export const ModuleRecordCard = memo(function ModuleRecordCard({
   const isProperty = config.resource === 'properties'
   const isFinancial = profile.category === 'financial'
   const isMaintenance = profile.category === 'maintenance'
-  const isDownloadable = config.resource === 'invoices' || config.resource === 'payments'
+  const isDownloadable = config.resource === 'invoices' || config.resource === 'payments' || config.resource === 'deposit-disputes'
   const isDispute = config.resource === 'deposit-disputes' && (canEdit || canDelete)
   const live = isLiveStatus(status)
   const canPayInvoice = config.resource === 'invoices'
@@ -326,9 +326,11 @@ export const ModuleRecordCard = memo(function ModuleRecordCard({
               {isDownloadable && (
                 <Button
                   size="small"
-                  onClick={() => downloadFinancialRecord(config, record, references)}
-                  title={`Download ${config.resource === 'invoices' ? 'invoice' : 'receipt'} PDF`}
-                  aria-label={`Download ${config.resource === 'invoices' ? 'invoice' : 'receipt'} PDF`}
+                  onClick={() => config.resource === 'deposit-disputes'
+                    ? downloadDepositDisputeRecord(record, references)
+                    : downloadFinancialRecord(config, record, references)}
+                  title={`Download ${config.resource === 'invoices' ? 'invoice' : config.resource === 'deposit-disputes' ? 'dispute record' : 'receipt'} PDF`}
+                  aria-label={`Download ${config.resource === 'invoices' ? 'invoice' : config.resource === 'deposit-disputes' ? 'dispute record' : 'receipt'} PDF`}
                   sx={{ minWidth: 32, width: 32, height: 32, borderRadius: '9px', p: 0, color: 'text.secondary', bgcolor: 'color-mix(in srgb, var(--rs-primary) 8%, transparent)', transition: 'all 0.2s ease', '&:hover': { bgcolor: 'color-mix(in srgb, var(--rs-primary) 16%, transparent)', color: 'primary.main', transform: 'scale(1.1) translateY(-2px)' } }}
                 >
                   <DownloadIcon sx={{ fontSize: 16 }} />

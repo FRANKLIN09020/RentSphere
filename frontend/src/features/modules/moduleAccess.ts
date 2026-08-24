@@ -43,7 +43,7 @@ export function canCreateModule(role: UserRole | undefined, resource: string) {
   if (resource === 'payments') return false
   if (role === 'ADMIN') return adminModules.has(resource)
   if (role === 'OWNER') return ownerModules.has(resource)
-  if (role === 'TENANT') return resource === 'complaints' || resource === 'deposit-disputes'
+  if (role === 'TENANT') return resource === 'complaints'
   return false
 }
 

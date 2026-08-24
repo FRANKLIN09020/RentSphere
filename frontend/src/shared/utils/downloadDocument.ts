@@ -189,6 +189,79 @@ export function downloadFinancialRecord(
   doc.save(`${isInvoice ? 'invoice' : 'payment'}-${id}.pdf`)
 }
 
+export function downloadDepositDisputeRecord(record: RecordData, references: ReferenceData) {
+  const id = String(record.id ?? '-')
+  const status = String(record.status ?? 'OPEN')
+  const tenantName = resolveLabel('tenantId', record, references)
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+  const rows: Array<[string, string]> = [
+    ['Tenant', tenantName],
+    ['Unit', resolveLabel('unitId', record, references)],
+    ['Agreement', resolveLabel('agreementId', record, references)],
+    ['Deposit amount', formatPdfMoney(record.depositAmount)],
+    ['Deducted amount', formatPdfMoney(record.deductedAmount)],
+    ['Proposed settlement', formatPdfMoney(record.proposedSettlementAmount)],
+    ['Deduction reason', String(record.deductionReason ?? '-')],
+    ['Owner response', String(record.ownerResponse ?? '-')],
+    ['Tenant notes', String(record.tenantNotes ?? '-')],
+    ['Settlement due date', formatDate(record.settlementDueDate)],
+  ]
+
+  doc.setFillColor(brandColors.primaryHover)
+  doc.rect(0, 0, PAGE_WIDTH, 122, 'F')
+  doc.setFillColor(brandColors.accent)
+  doc.rect(0, 122, PAGE_WIDTH, 5, 'F')
+  doc.setTextColor('#ffffff')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(22)
+  doc.text('RentSphere', MARGIN, 48)
+  doc.setFontSize(21)
+  doc.text('DEPOSIT DISPUTE RECORD', PAGE_WIDTH - MARGIN, 48, { align: 'right' })
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor('#ccfbf1')
+  doc.text(shortReference('DSP', id), PAGE_WIDTH - MARGIN, 69, { align: 'right' })
+  doc.text('Official tenant copy', MARGIN, 69)
+
+  let y = 165
+  doc.setTextColor(DARK)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(17)
+  doc.text(tenantName, MARGIN, y)
+  const badgeWidth = Math.max(72, doc.getTextWidth(status) + 24)
+  doc.setFillColor(statusColor(status))
+  doc.roundedRect(PAGE_WIDTH - MARGIN - badgeWidth, y - 22, badgeWidth, 27, 6, 6, 'F')
+  doc.setTextColor('#ffffff')
+  doc.setFontSize(10)
+  doc.text(status, PAGE_WIDTH - MARGIN - badgeWidth / 2, y - 5, { align: 'center' })
+
+  y += 42
+  rows.forEach(([label, value], index) => {
+    const valueLines = doc.splitTextToSize(value, 300)
+    const height = Math.max(32, valueLines.length * 13 + 15)
+    doc.setFillColor(index % 2 === 0 ? LIGHT : '#ffffff')
+    doc.roundedRect(MARGIN, y, CONTENT_WIDTH, height, 4, 4, 'F')
+    doc.setTextColor(GRAY)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.text(label.toUpperCase(), MARGIN + 12, y + 19)
+    doc.setTextColor(DARK)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(valueLines, MARGIN + 175, y + 19)
+    y += height + 3
+  })
+
+  doc.setDrawColor(BORDER)
+  doc.line(MARGIN, PAGE_HEIGHT - 74, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 74)
+  doc.setTextColor(GRAY)
+  doc.setFontSize(8)
+  doc.text(`Generated ${new Date().toLocaleString('en-IN')} | RentSphere`, MARGIN, PAGE_HEIGHT - 52)
+  doc.text('Read-only record supplied to the tenant.', PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 52, { align: 'right' })
+  const safeName = tenantName.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'tenant'
+  doc.save(`deposit-dispute-${safeName}-${id}.pdf`)
+}
+
 export function downloadTenantPaidInvoice({
   invoice,
   payment,
