@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
 import {
   Alert,
   Box,
@@ -21,7 +20,7 @@ import {
   Typography,
 } from '@mui/material'
 import { getErrorMessage, http } from '../../shared/api/http'
-import { AddIcon, CancelIcon, CheckIcon, RefreshIcon } from '../../shared/ui/AppIcons'
+import { CancelIcon, CheckIcon, RefreshIcon } from '../../shared/ui/AppIcons'
 import { useAuth } from '../../shared/auth/useAuth'
 
 type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -39,24 +38,6 @@ type ApprovalRequest = {
   decidedAt?: string
 }
 
-const APPROVAL_TYPES = ['APARTMENT_VISIT', 'RENTAL_AGREEMENT', 'MAINTENANCE_WORK', 'DEPOSIT_REFUND', 'RENT_INCREASE', 'OTHER']
-
-type CreateForm = {
-  type: string
-  subject: string
-  details: string
-  requesterEmail: string
-  approverEmail: string
-}
-
-const initialCreateForm: CreateForm = {
-  type: 'RENTAL_AGREEMENT',
-  subject: '',
-  details: '',
-  requesterEmail: '',
-  approverEmail: '',
-}
-
 export function ApprovalsPage() {
   const { session } = useAuth()
   const isTenant = session?.role === 'TENANT'
@@ -65,9 +46,6 @@ export function ApprovalsPage() {
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [createForm, setCreateForm] = useState<CreateForm>(initialCreateForm)
-  const [createMessage, setCreateMessage] = useState('')
-  const [creating, setCreating] = useState(false)
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const pagedApprovals = approvals.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
@@ -110,113 +88,11 @@ export function ApprovalsPage() {
     }
   }
 
-  async function handleCreateSubmit(event: FormEvent) {
-    event.preventDefault()
-    setCreateMessage('')
-    setCreating(true)
-    try {
-      await http.post('/approvals', {
-        type: createForm.type,
-        subject: createForm.subject,
-        details: createForm.details || null,
-        requesterEmail: createForm.requesterEmail,
-        approverEmail: createForm.approverEmail,
-      })
-      setCreateMessage('Approval request created and the approver has been notified.')
-      setCreateForm(initialCreateForm)
-      await loadApprovals()
-    } catch (err) {
-      setError(getErrorMessage(err))
-    } finally {
-      setCreating(false)
-    }
-  }
-
   return (
     <Box component="section" sx={{ p: { xs: 2.5, md: 3.5 }, maxWidth: 1440 }}>
       {error && <Alert severity="error" sx={{ mb: 2.5 }}>{error}</Alert>}
 
       <Grid container spacing={2}>
-          {!isTenant && (
-          <Grid size={{ xs: 12 }}>
-            <Card>
-              <CardContent>
-                <Stack component="form" spacing={2} onSubmit={handleCreateSubmit}>
-                  <Box>
-                    <Typography variant="h6">Create approval request</Typography>
-                    <Typography color="text.secondary">Send a new request to an approver. An email notification is sent when SMTP is enabled.</Typography>
-                  </Box>
-                  {createMessage && <Alert severity="success">{createMessage}</Alert>}
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                      <TextField
-                        select
-                        label="Type"
-                        value={createForm.type}
-                        onChange={(event) => setCreateForm({ ...createForm, type: event.target.value })}
-                      >
-                        {APPROVAL_TYPES.map((type) => (
-                          <MenuItem key={type} value={type}>{type.replace(/_/g, ' ')}</MenuItem>
-                        ))}
-                      </TextField>
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                      <TextField
-                        label="Requester email"
-                        type="email"
-                        value={createForm.requesterEmail}
-                        required
-                        onChange={(event) => setCreateForm({ ...createForm, requesterEmail: event.target.value })}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                      <TextField
-                        label="Approver email"
-                        type="email"
-                        value={createForm.approverEmail}
-                        required
-                        onChange={(event) => setCreateForm({ ...createForm, approverEmail: event.target.value })}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                      <TextField
-                        label="Subject"
-                        value={createForm.subject}
-                        required
-                        onChange={(event) => setCreateForm({ ...createForm, subject: event.target.value })}
-                      />
-                    </Grid>
-                    <Grid size={{ xs: 12 }}>
-                      <TextField
-                        label="Details"
-                        value={createForm.details}
-                        multiline
-                        minRows={3}
-                        onChange={(event) => setCreateForm({ ...createForm, details: event.target.value })}
-                      />
-                    </Grid>
-                  </Grid>
-                  <Stack direction="row" spacing={1}>
-                    <Button type="submit" variant="contained" startIcon={<AddIcon />} disabled={creating}>
-                      {creating ? 'Creating...' : 'Create request'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outlined"
-                      disabled={creating}
-                      onClick={() => {
-                        setCreateForm(initialCreateForm)
-                        setCreateMessage('')
-                      }}
-                    >
-                      Clear
-                    </Button>
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        )}
           <Grid size={{ xs: 12, lg: 12 }}>
           <Card>
             <CardContent>
