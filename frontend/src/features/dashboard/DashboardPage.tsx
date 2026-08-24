@@ -555,7 +555,7 @@ export function DashboardPage() {
                       if (resource === 'apartments') {
                         content = (
                           <Button key={resource} component={Link} to="/apartments" variant="outlined" size="small">
-                            Browse Apartments
+                            Book Apartment
                           </Button>
                         )
                       } else {

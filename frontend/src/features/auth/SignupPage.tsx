@@ -87,7 +87,7 @@ export function SignupPage() {
             Create your RentSphere account.
           </Typography>
           <Typography color="#cbd5e1">
-            Create a tenant account to browse apartments, pay invoices and manage your requests. Owner accounts are provisioned by your administrator.
+            Create a tenant account to book an apartment, track approval, and pay rent after KYC and agreement activation. Owner accounts are provisioned by your administrator.
           </Typography>
         </Box>
       </Box>

@@ -93,6 +93,7 @@ export function ModuleForm({
             {visibleFields.map((field, index) => (
               <Grid key={field.name} size={{ xs: 12, sm: field.full ? 12 : 6, lg: 12 }} sx={{ animation: 'fieldIn 0.35s ease both', animationDelay: `${0.06 + index * 0.04}s`, '@keyframes fieldIn': { from: { opacity: 0, transform: 'translateY(8px)' }, to: { opacity: 1, transform: 'none' } } }}>
                 <ModuleField
+                  resource={config.resource}
                   field={field}
                   references={references}
                   form={form}

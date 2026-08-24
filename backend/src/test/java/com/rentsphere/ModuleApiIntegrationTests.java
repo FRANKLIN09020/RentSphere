@@ -151,6 +151,7 @@ class ModuleApiIntegrationTests {
                   "fullName": "Tara Tenant",
                   "phone": "5550122",
                   "emergencyContact": "5550999",
+                  "kycStatus": "VERIFIED",
                   "idProofUrl": "%s",
                   "addressProofUrl": "%s"
                 }

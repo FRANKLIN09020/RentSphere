@@ -75,7 +75,7 @@ export const moduleConfigs: ModuleConfig[] = [
   {
     resource: 'tenants',
     title: 'Tenants',
-    description: 'Tenant profiles, contacts, assigned units, and KYC documents.',
+    description: 'Approved applicants, KYC verification, contacts, and assigned units.',
     tableColumns: ['fullName', 'organizationId', 'userId', 'unitId', 'phone', 'kycStatus'],
     fields: [
       { name: 'organizationId', label: 'Organization ID', ...uuid },
@@ -92,7 +92,7 @@ export const moduleConfigs: ModuleConfig[] = [
   {
     resource: 'agreements',
     title: 'Agreements',
-    description: 'Rental agreement terms and status.',
+    description: 'Activate verified tenants, assign their unit, and generate the first rent invoice.',
     tableColumns: ['tenantId', 'unitId', 'startDate', 'status'],
     fields: [
       { name: 'organizationId', label: 'Organization ID', ...uuid },
@@ -100,8 +100,8 @@ export const moduleConfigs: ModuleConfig[] = [
       { name: 'unitId', label: 'Unit ID', ...uuid },
       { name: 'startDate', label: 'Start date', kind: 'date' },
       { name: 'endDate', label: 'End date', kind: 'date' },
-      { name: 'rentAmount', label: 'Rent amount', kind: 'number' },
-      { name: 'status', label: 'Status', kind: 'select', options: ['ACTIVE', 'EXPIRED', 'TERMINATED'] },
+      { name: 'rentAmount', label: 'Rent amount', kind: 'number', required: true },
+      { name: 'status', label: 'Status', kind: 'select', required: true, options: ['ACTIVE', 'EXPIRED', 'TERMINATED'] },
     ],
   },
   {

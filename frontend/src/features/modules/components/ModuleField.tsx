@@ -40,12 +40,14 @@ function referenceLabelPlural(resource: string) {
 }
 
 export function ModuleField({
+  resource,
   field,
   references,
   form,
   value,
   onChange,
 }: {
+  resource: string
   field: FieldConfig
   references: ReferenceData
   form: RecordData
@@ -82,7 +84,10 @@ export function ModuleField({
       return options.filter((item) => String(item.buildingId) === String(form.buildingId))
     }
     if (field.name === 'tenantId' && form.organizationId) {
-      return options.filter((item) => String(item.organizationId) === String(form.organizationId))
+      return options.filter((item) =>
+        String(item.organizationId) === String(form.organizationId)
+        && (resource !== 'agreements' || String(item.kycStatus ?? '').toUpperCase() === 'VERIFIED'),
+      )
     }
     return options
   }
@@ -126,7 +131,11 @@ export function ModuleField({
         label={getRelationLabel(field.name)}
         value={fieldValue}
         required={field.required}
-        helperText={noFilteredOptions ? 'No matching records found for the current selection.' : undefined}
+        helperText={noFilteredOptions
+          ? resource === 'agreements' && field.name === 'tenantId'
+            ? 'No verified tenants found. Verify KYC in the Tenant module first.'
+            : 'No matching records found for the current selection.'
+          : undefined}
         onChange={(event) => onChange(event.target.value)}
       >
         <MenuItem value="">Select {getRelationLabel(field.name).toLowerCase()}</MenuItem>

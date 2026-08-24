@@ -141,7 +141,7 @@ export function AppLayout() {
 
   const apartmentsLink: NavItem = {
     to: '/apartments',
-    label: 'Browse Apartments',
+    label: 'Book Apartment',
     icon: <ApartmentIcon />,
   }
 

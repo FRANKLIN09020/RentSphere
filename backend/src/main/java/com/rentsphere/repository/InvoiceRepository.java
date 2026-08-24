@@ -15,4 +15,6 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
     Page<Invoice> findByOrganizationId(UUID organizationId, Pageable pageable);
 
     List<Invoice> findByTenantId(UUID tenantId);
+
+    boolean existsByAgreementId(UUID agreementId);
 }
