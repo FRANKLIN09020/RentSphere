@@ -28,7 +28,7 @@ public class NotificationService {
     @Transactional
     public NotificationResponse notifyUser(UUID organizationId, String email, String title, String detail, String type, String targetPath) {
         if (email == null || email.isBlank()) return null;
-        Notification saved = repository.save(Notification.builder().organizationId(organizationId).recipientEmail(email.toLowerCase()).title(title).detail(detail).type(type).targetPath(targetPath).build());
+        Notification saved = repository.saveAndFlush(Notification.builder().organizationId(organizationId).recipientEmail(email.toLowerCase()).title(title).detail(detail).type(type).targetPath(targetPath).build());
         NotificationResponse response = toResponse(saved);
         emit(email, response);
         return response;

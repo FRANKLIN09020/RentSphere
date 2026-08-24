@@ -6,7 +6,9 @@ type NotificationResponse = { id: string; title: string; detail: string; type: s
 export type NotificationItem = NotificationResponse & { time: string }
 
 function withRelativeTime(item: NotificationResponse): NotificationItem {
-  const elapsed = Math.max(0, Date.now() - new Date(item.createdAt).getTime())
+  const createdAt = item.createdAt ? new Date(item.createdAt).getTime() : Number.NaN
+  if (!Number.isFinite(createdAt)) return { ...item, time: 'Just now' }
+  const elapsed = Math.max(0, Date.now() - createdAt)
   const minutes = Math.floor(elapsed / 60_000)
   const time = minutes < 1 ? 'Just now' : minutes < 60 ? `${minutes}m ago` : minutes < 1440 ? `${Math.floor(minutes / 60)}h ago` : `${Math.floor(minutes / 1440)}d ago`
   return { ...item, time }
