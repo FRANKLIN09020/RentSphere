@@ -1,8 +1,12 @@
 package com.rentsphere.service;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +22,19 @@ public class TenantService extends BaseCrudService<Tenant> {
     public TenantService(TenantRepository tenantRepository) {
         super(tenantRepository, "Tenant");
         this.tenantRepository = tenantRepository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(cacheResolver = "baseCrudCacheResolver", key = "T(com.rentsphere.security.SecurityUtils).cacheScopeKey()")
+    public List<Tenant> findAll() {
+        return findAllScoped(tenantRepository::findByOrganizationId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Tenant> findAll(Pageable pageable) {
+        return findAllScoped(pageable, tenantRepository::findByOrganizationId);
     }
 
     public Optional<Tenant> findByUserId(UUID userId) {

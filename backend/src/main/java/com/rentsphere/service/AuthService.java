@@ -16,6 +16,7 @@ import com.rentsphere.entity.UserRole;
 import com.rentsphere.exception.DuplicateResourceException;
 import com.rentsphere.exception.InvalidCredentialsException;
 import com.rentsphere.repository.UserRepository;
+import com.rentsphere.repository.OrganizationRepository;
 import com.rentsphere.security.JwtService;
 
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final OrganizationRepository organizationRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final TenantService tenantService;
@@ -37,11 +39,15 @@ public class AuthService {
             );
         }
 
-        boolean privilegedRole = request.getRole() == UserRole.ADMIN;
-        if (privilegedRole && userRepository.count() > 0) {
-            throw new AccessDeniedException(
-                    "Admin accounts must be created by an existing administrator"
-            );
+        if (request.getRole() != UserRole.TENANT) {
+            boolean bootstrapAdmin = request.getRole() == UserRole.ADMIN && userRepository.count() == 0;
+            if (!bootstrapAdmin) {
+                throw new AccessDeniedException(
+                        request.getRole() == UserRole.ADMIN
+                                ? "Admin accounts must be created by an existing administrator"
+                                : "Owner accounts must be created by an administrator"
+                );
+            }
         }
 
         User user = User.builder()
@@ -110,6 +116,11 @@ public class AuthService {
     }
 
     private UserProfileResponse toProfile(User user) {
+        String organizationName = user.getOrganizationId() == null
+                ? null
+                : organizationRepository.findById(user.getOrganizationId())
+                        .map(organization -> organization.getName())
+                        .orElse(null);
         return new UserProfileResponse(
                 user.getId(),
                 user.getName(),
@@ -117,6 +128,7 @@ public class AuthService {
                 user.getPhone(),
                 user.getRole(),
                 user.getOrganizationId(),
+                organizationName,
                 user.getCreatedAt());
     }
 }

@@ -18,6 +18,7 @@ import com.rentsphere.entity.UserRole;
 import com.rentsphere.exception.InvalidApprovalStateException;
 import com.rentsphere.exception.ResourceNotFoundException;
 import com.rentsphere.repository.ApprovalRequestRepository;
+import com.rentsphere.security.SecurityUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,6 +28,7 @@ public class ApprovalRequestService {
 
     private final ApprovalRequestRepository approvalRequestRepository;
     private final EmailNotificationService emailNotificationService;
+    private final NotificationService notificationService;
 
     @Transactional
     @CacheEvict(cacheNames = "approvalRequests", allEntries = true)
@@ -43,6 +45,7 @@ public class ApprovalRequestService {
 
         ApprovalRequest saved = approvalRequestRepository.save(approvalRequest);
         emailNotificationService.sendApprovalCreated(saved);
+        notificationService.notifyUser(saved.getOrganizationId(), saved.getApproverEmail(), "New approval request", saved.getSubject(), "APPROVAL_CREATED", "/approvals");
         return saved;
     }
 
@@ -66,6 +69,16 @@ public class ApprovalRequestService {
             return approvalRequestRepository.findByRequesterEmailAndStatus(requesterEmail, status);
         }
 
+        if (role != UserRole.ADMIN) {
+            UUID organizationId = SecurityUtils.getCurrentOrganizationId();
+            if (organizationId == null) {
+                return List.of();
+            }
+            return approvalRequestRepository.findByOrganizationId(organizationId).stream()
+                    .filter(request -> status == null || request.getStatus() == status)
+                    .toList();
+        }
+
         return findAll(status);
     }
 
@@ -82,6 +95,7 @@ public class ApprovalRequestService {
         if (role == UserRole.TENANT && !approvalRequest.getRequesterEmail().equalsIgnoreCase(requesterEmail)) {
             throw new AccessDeniedException("Access denied to this approval request");
         }
+        assertAccessible(approvalRequest);
         return approvalRequest;
     }
 
@@ -90,6 +104,7 @@ public class ApprovalRequestService {
     public ApprovalRequest approve(UUID id, ApprovalDecisionRequest request) {
         ApprovalRequest approvalRequest = decide(id, ApprovalStatus.APPROVED, request);
         emailNotificationService.sendApprovalDecided(approvalRequest);
+        notificationService.notifyUser(approvalRequest.getOrganizationId(), approvalRequest.getRequesterEmail(), "Request approved", approvalRequest.getSubject(), "APPROVAL_APPROVED", "/approvals");
         return approvalRequest;
     }
 
@@ -98,6 +113,7 @@ public class ApprovalRequestService {
     public ApprovalRequest reject(UUID id, ApprovalDecisionRequest request) {
         ApprovalRequest approvalRequest = decide(id, ApprovalStatus.REJECTED, request);
         emailNotificationService.sendApprovalDecided(approvalRequest);
+        notificationService.notifyUser(approvalRequest.getOrganizationId(), approvalRequest.getRequesterEmail(), "Request rejected", approvalRequest.getSubject(), "APPROVAL_REJECTED", "/approvals");
         return approvalRequest;
     }
 
@@ -105,11 +121,13 @@ public class ApprovalRequestService {
     @CacheEvict(cacheNames = "approvalRequests", allEntries = true)
     public void delete(UUID id) {
         ApprovalRequest approvalRequest = findById(id);
+        assertAccessible(approvalRequest);
         approvalRequestRepository.delete(approvalRequest);
     }
 
     private ApprovalRequest decide(UUID id, ApprovalStatus status, ApprovalDecisionRequest request) {
         ApprovalRequest approvalRequest = findById(id);
+        assertAccessible(approvalRequest);
 
         if (approvalRequest.getStatus() != ApprovalStatus.PENDING) {
             throw new InvalidApprovalStateException("Only pending approval requests can be decided");
@@ -119,5 +137,19 @@ public class ApprovalRequestService {
         approvalRequest.setDecisionComment(request == null ? null : request.getComment());
         approvalRequest.setDecidedAt(LocalDateTime.now());
         return approvalRequestRepository.save(approvalRequest);
+    }
+
+    /**
+     * Staff users may only act on approval requests inside their own
+     * organization. Admins are unrestricted; tenants never reach this path.
+     */
+    private void assertAccessible(ApprovalRequest approvalRequest) {
+        if (SecurityUtils.isAdmin()) {
+            return;
+        }
+        UUID organizationId = SecurityUtils.getCurrentOrganizationId();
+        if (organizationId == null || !organizationId.equals(approvalRequest.getOrganizationId())) {
+            throw new AccessDeniedException("Access denied to this approval request");
+        }
     }
 }

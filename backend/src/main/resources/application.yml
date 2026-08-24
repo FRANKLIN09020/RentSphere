@@ -33,7 +33,8 @@ app:
   ai:
     groq:
       api-key: ${GROQ_API_KEY:}
-      model: openai/gpt-oss-20b
+      # Override with AI_MODEL to switch providers' models, e.g. a Llama model available on your Groq account.
+      model: ${AI_MODEL:openai/gpt-oss-20b}
   razorpay:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}

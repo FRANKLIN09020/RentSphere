@@ -135,7 +135,7 @@ export const moduleConfigs: ModuleConfig[] = [
     resource: 'complaints',
     title: 'Complaints & Maintenance',
     description: 'Complaint management and maintenance requests.',
-    tableColumns: ['title', 'status', 'organizationId', 'tenantId', 'unitId'],
+    tableColumns: ['title', 'status', 'aiPriority', 'aiCategory', 'unitId'],
     fields: [
       { name: 'organizationId', label: 'Organization ID', ...uuid },
       { name: 'tenantId', label: 'Tenant ID', ...uuid },
@@ -185,8 +185,6 @@ export const moduleConfigs: ModuleConfig[] = [
       { name: 'agreementId', label: 'Agreement ID', ...uuid },
       { name: 'previousRent', label: 'Previous rent', kind: 'number', required: true },
       { name: 'proposedRent', label: 'Proposed rent', kind: 'number', required: true },
-      { name: 'increaseAmount', label: 'Increase amount', kind: 'number' },
-      { name: 'increasePercent', label: 'Increase percent', kind: 'number' },
       { name: 'noticeDate', label: 'Notice date', kind: 'date' },
       { name: 'effectiveDate', label: 'Effective date', kind: 'date', required: true },
       { name: 'notificationScheduledAt', label: 'Notification scheduled at', kind: 'datetime-local' },

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Box, Chip, Stack, Typography } from '@mui/material'
+import { alpha, useTheme } from '@mui/material/styles'
+import { AppScrollbar } from '../../shared/ui/AppScrollbars'
 
 export type ChartDatum = {
   label: string
@@ -108,8 +110,8 @@ export function DonutChart({
             textAlign: 'center',
             animation: 'donutCenterPulse 3s ease-in-out infinite',
             '@keyframes donutCenterPulse': {
-              '0%, 100%': { boxShadow: '0 0 0 0 rgba(13,148,136,0) inset' },
-              '50%': { boxShadow: '0 0 0 2px rgba(13,148,136,0.08) inset' },
+              '0%, 100%': { boxShadow: '0 0 0 0 transparent inset' },
+              '50%': { boxShadow: '0 0 0 2px color-mix(in srgb, var(--rs-primary) 8%, transparent) inset' },
             },
           }}
         >
@@ -314,13 +316,15 @@ export type AreaPoint = { label: string; value: number }
 
 export function AreaChart({
   data,
-  color = '#0d9488',
+  color,
   height = 220,
 }: {
   data: AreaPoint[]
   color?: string
   height?: number
 }) {
+  const theme = useTheme()
+  const seriesColor = color ?? theme.palette.primary.main
   const width = 620
   const padX = 8
   const padY = 16
@@ -338,11 +342,11 @@ export function AreaChart({
       ? `${linePath} L ${points[points.length - 1].x} ${height - padY} L ${points[0].x} ${height - padY} Z`
       : ''
 
-  const gradientId = `area-${color.replace('#', '')}`
+  const gradientId = `area-${seriesColor.replace('#', '')}`
 
   return (
     <Box>
-      <Box data-app-scrollbars data-scroll-axis="x" sx={{ width: '100%', overflowX: 'auto' }}>
+      <AppScrollbar axis="x" sx={{ width: '100%' }}>
         <svg
           viewBox={`0 0 ${width} ${height}`}
           role="img"
@@ -350,8 +354,8 @@ export function AreaChart({
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity="0.34" />
-              <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+              <stop offset="0%" stopColor={seriesColor} stopOpacity="0.34" />
+              <stop offset="100%" stopColor={seriesColor} stopOpacity="0.02" />
             </linearGradient>
           </defs>
           {[0.25, 0.5, 0.75].map((ratio) => (
@@ -361,7 +365,7 @@ export function AreaChart({
               x2={width - padX}
               y1={padY + ratio * (height - padY * 2)}
               y2={padY + ratio * (height - padY * 2)}
-              stroke="rgba(148,163,184,0.18)"
+              stroke={alpha(theme.palette.text.secondary, 0.18)}
               strokeDasharray="4 6"
               style={{ animation: `gridFade 1s ease ${0.6 + ratio}s both` }}
             />
@@ -377,7 +381,7 @@ export function AreaChart({
             <path
               d={linePath}
               fill="none"
-              stroke={color}
+              stroke={seriesColor}
               strokeWidth={3}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -407,15 +411,15 @@ export function AreaChart({
                 cx={point.x}
                 cy={point.y}
                 r={4}
-                fill="#ffffff"
-                stroke={color}
+                fill={theme.palette.background.paper}
+                stroke={seriesColor}
                 strokeWidth={2.5}
                 style={{ opacity: 0, animation: `dotIn 0.4s ease ${0.5 + index * 0.1}s forwards` }}
               />
             </g>
           ))}
         </svg>
-      </Box>
+      </AppScrollbar>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
         {data.map((point, index) => (
           <Typography

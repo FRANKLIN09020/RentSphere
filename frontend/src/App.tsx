@@ -39,6 +39,13 @@ function AuthorizedApartments() {
     : <Navigate to="/" replace />
 }
 
+function AuthorizedPayments() {
+  const { session } = useAuth()
+  return session?.role === 'ADMIN' || session?.role === 'TENANT'
+    ? <PaymentsPage />
+    : <Navigate to="/" replace />
+}
+
 function App() {
   return (
     <Routes>
@@ -57,7 +64,7 @@ function App() {
         <Route path="profile" element={<ProfilePage />} />
         <Route path="approvals" element={<AuthorizedApprovals />} />
         <Route path="apartments" element={<AuthorizedApartments />} />
-        <Route path="payments" element={<PaymentsPage />} />
+        <Route path="payments" element={<AuthorizedPayments />} />
         {moduleConfigs.filter((config) => config.resource !== 'payments').map((config) => (
           <Route
             key={config.resource}

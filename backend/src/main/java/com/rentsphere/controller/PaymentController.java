@@ -58,6 +58,7 @@ public class PaymentController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     public PaymentResponse createPayment(@Valid @RequestBody PaymentRequest request) {
         var entity = paymentService.create(DtoMapper.toEntity(request));
@@ -66,7 +67,7 @@ public class PaymentController {
 
     @GetMapping
     public List<PaymentResponse> getAllPayments() {
-        return DtoMapper.toResponseList(paymentService.findAll(), DtoMapper::toResponse);
+        return DtoMapper.toResponseList(paymentService.findPaymentHistory(), DtoMapper::toResponse);
     }
 
     @GetMapping("/paged")
@@ -80,6 +81,7 @@ public class PaymentController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public PaymentResponse updatePayment(@PathVariable UUID id, @Valid @RequestBody PaymentRequest request) {
         var entity = paymentService.findById(id);
         DtoMapper.updateEntity(entity, request);
@@ -87,6 +89,7 @@ public class PaymentController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deletePayment(@PathVariable UUID id) {
         paymentService.delete(id);

@@ -1,18 +1,11 @@
 package com.rentsphere.entity;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,58 +14,32 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.SQLRestriction;
-import jakarta.persistence.EntityListeners;
 
 @Entity
+@org.hibernate.annotations.SQLRestriction("deleted = false")
 @Table(name = "units")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EntityListeners(AuditListener.class)
-@SQLRestriction("deleted = false")
-public class Unit implements AuditListener.BaseAuditable {
-
-    @Id
-    @GeneratedValue
-    private UUID id;
+public class Unit extends BaseEntity {
 
     private UUID organizationId;
 
     private UUID buildingId;
 
-    @Column(nullable = false)
+    @jakarta.persistence.Column(nullable = false)
     @NotBlank
     private String unitNumber;
 
-    @Column(nullable = false)
+    @jakarta.persistence.Column(nullable = false)
     @NotNull
     private BigDecimal rentAmount;
 
     @Enumerated(EnumType.STRING)
     private UnitStatus status;
 
-    @Column(columnDefinition = "TEXT")
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
     private String imageUrl;
-
-    @CreationTimestamp
-    @Column(updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
-
-    @Column(updatable = false)
-    private UUID createdBy;
-
-    private UUID updatedBy;
-
-    private UUID deletedBy;
-
-    private LocalDateTime deletedAt;
-
-    @Column(nullable = false)
-    private boolean deleted = false;
 }

@@ -8,7 +8,9 @@ import { getInitials, formatDate, toTitle, getStatusColor, formatDetail, formatM
 import { getReferenceLabel } from '../referenceUtils'
 import { downloadFinancialRecord } from '../../../shared/utils/downloadDocument'
 import { PayNowButton } from '../../payments/PayNowButton'
+import { SettlementAdviceButton } from '../../disputes/SettlementAdviceButton'
 import { useAuth } from '../../../shared/auth/useAuth'
+import { brandColors } from '../../../app/theme'
 
 type ReferenceData = Record<string, RecordData[]>
 
@@ -59,6 +61,7 @@ export const ModuleRecordCard = memo(function ModuleRecordCard({
   const isFinancial = profile.category === 'financial'
   const isMaintenance = profile.category === 'maintenance'
   const isDownloadable = config.resource === 'invoices' || config.resource === 'payments'
+  const isDispute = config.resource === 'deposit-disputes' && (canEdit || canDelete)
   const live = isLiveStatus(status)
   const canPayInvoice = config.resource === 'invoices'
     && Boolean(session?.role)
@@ -177,13 +180,13 @@ export const ModuleRecordCard = memo(function ModuleRecordCard({
                   width: 13,
                   height: 13,
                   borderRadius: '50%',
-                  bgcolor: statusColor === 'success' ? '#15803d' : statusColor === 'error' ? '#b91c1c' : statusColor === 'warning' ? '#b45309' : '#0d9488',
+                  bgcolor: statusColor === 'success' ? brandColors.success : statusColor === 'error' ? brandColors.error : statusColor === 'warning' ? brandColors.warning : brandColors.primary,
                   border: '2.5px solid #fff',
-                  boxShadow: `0 0 0 0 ${statusColor === 'error' ? 'rgba(185,28,28,0.5)' : statusColor === 'warning' ? 'rgba(180,83,9,0.5)' : 'rgba(13,148,136,0.5)'}`,
+                  boxShadow: `0 0 0 0 ${statusColor === 'error' ? 'rgba(185,28,28,0.5)' : statusColor === 'warning' ? 'rgba(180,83,9,0.5)' : 'color-mix(in srgb, var(--rs-primary) 50%, transparent)'}`,
                   animation: 'statusPulse 1.8s ease-out infinite',
                   '@keyframes statusPulse': {
-                    '0%': { boxShadow: `0 0 0 0 ${statusColor === 'error' ? 'rgba(185,28,28,0.45)' : statusColor === 'warning' ? 'rgba(180,83,9,0.45)' : 'rgba(13,148,136,0.45)'}` },
-                    '100%': { boxShadow: '0 0 0 7px rgba(13,148,136,0)' },
+                    '0%': { boxShadow: `0 0 0 0 ${statusColor === 'error' ? 'rgba(185,28,28,0.45)' : statusColor === 'warning' ? 'rgba(180,83,9,0.45)' : 'color-mix(in srgb, var(--rs-primary) 45%, transparent)'}` },
+                    '100%': { boxShadow: '0 0 0 7px transparent' },
                   },
                 }}
               />
@@ -250,11 +253,14 @@ export const ModuleRecordCard = memo(function ModuleRecordCard({
 
         {isMaintenance && record.status != null && (
           <Box sx={{ mt: 1.5, px: 1.5, py: 0.8, borderRadius: '10px', bgcolor: accent.accentBg, display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid', borderColor: `${accent.dotColor}26` }}>
-            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>Priority</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+              {String(record.aiPriority ?? '') !== '' ? 'AI priority' : 'Priority'}
+            </Typography>
             <Chip
               size="small"
-              label={String(record.status) === 'OPEN' ? 'Urgent' : String(record.status) === 'IN_PROGRESS' ? 'In progress' : 'Resolved'}
-              color={String(record.status) === 'OPEN' ? 'error' : String(record.status) === 'IN_PROGRESS' ? 'warning' : 'success'}
+              label={maintenancePriorityLabel(record)}
+              color={maintenancePriorityColor(record)}
+              title={String(record.aiNote ?? '')}
               sx={{ height: 22, fontWeight: 700, fontSize: '0.65rem', borderRadius: '6px' }}
             />
           </Box>
@@ -307,6 +313,7 @@ export const ModuleRecordCard = memo(function ModuleRecordCard({
             {getRecordMeta(record)}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            {isDispute && <SettlementAdviceButton recordId={String(record.id)} />}
             {canPayInvoice && (
               <PayNowButton
                 invoiceId={String(record.id)}
@@ -322,7 +329,7 @@ export const ModuleRecordCard = memo(function ModuleRecordCard({
                   onClick={() => downloadFinancialRecord(config, record, references)}
                   title={`Download ${config.resource === 'invoices' ? 'invoice' : 'receipt'} PDF`}
                   aria-label={`Download ${config.resource === 'invoices' ? 'invoice' : 'receipt'} PDF`}
-                  sx={{ minWidth: 32, width: 32, height: 32, borderRadius: '9px', p: 0, color: 'text.secondary', bgcolor: 'rgba(13,148,136,0.08)', transition: 'all 0.2s ease', '&:hover': { bgcolor: 'rgba(13,148,136,0.16)', color: 'primary.main', transform: 'scale(1.1) translateY(-2px)' } }}
+                  sx={{ minWidth: 32, width: 32, height: 32, borderRadius: '9px', p: 0, color: 'text.secondary', bgcolor: 'color-mix(in srgb, var(--rs-primary) 8%, transparent)', transition: 'all 0.2s ease', '&:hover': { bgcolor: 'color-mix(in srgb, var(--rs-primary) 16%, transparent)', color: 'primary.main', transform: 'scale(1.1) translateY(-2px)' } }}
                 >
                   <DownloadIcon sx={{ fontSize: 16 }} />
                 </Button>
@@ -396,6 +403,23 @@ function getRecordStatus(record: RecordData, config: ModuleConfig) {
   return String(record.status ?? record.role ?? 'Active')
 }
 
+function maintenancePriorityLabel(record: RecordData) {
+  const ai = String(record.aiPriority ?? '').toUpperCase()
+  if (ai === 'EMERGENCY') return 'Emergency'
+  if (ai === 'HIGH') return 'High'
+  if (ai === 'LOW') return 'Low'
+  if (ai === 'MEDIUM') return 'Medium'
+  return String(record.status) === 'OPEN' ? 'Urgent' : String(record.status) === 'IN_PROGRESS' ? 'In progress' : 'Resolved'
+}
+
+function maintenancePriorityColor(record: RecordData): 'error' | 'warning' | 'primary' | 'success' {
+  const ai = String(record.aiPriority ?? '').toUpperCase()
+  if (ai === 'EMERGENCY' || ai === 'HIGH') return 'error'
+  if (ai === 'MEDIUM') return 'warning'
+  if (ai === 'LOW') return 'success'
+  return String(record.status) === 'OPEN' ? 'error' : String(record.status) === 'IN_PROGRESS' ? 'warning' : 'success'
+}
+
 function formatDisplayValue(fieldName: string, value: unknown, references: ReferenceData) {
   if (isReferenceField(fieldName)) {
     return getReferenceLabel(fieldName, value, references) || formatId(value)
@@ -424,11 +448,11 @@ function formatId(value: unknown) {
 function getCardAccent(value: string) {
   const colors = [
     { bg: '#ecfeff', fg: '#0e7490' },
-    { bg: '#f0fdf4', fg: '#15803d' },
-    { bg: '#ccfbf1', fg: '#0f766e' },
+    { bg: '#f0fdf4', fg: brandColors.success },
+    { bg: brandColors.primarySurface, fg: brandColors.primary },
     { bg: '#eff6ff', fg: '#1d4ed8' },
-    { bg: '#faf5ff', fg: '#7c3aed' },
-    { bg: '#fef2f2', fg: '#b91c1c' },
+    { bg: '#faf5ff', fg: brandColors.violet },
+    { bg: '#fef2f2', fg: brandColors.error },
   ]
   const index = value.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % colors.length
   return colors[index]

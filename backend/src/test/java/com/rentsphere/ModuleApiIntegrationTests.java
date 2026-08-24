@@ -14,6 +14,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -192,6 +193,22 @@ class ModuleApiIntegrationTests {
                 """.formatted(organizationId, invoiceId), adminToken, 201);
         String paymentId = id(payment);
 
+        mockMvc.perform(delete("/payments/{id}", paymentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/payments")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "organizationId": "%s",
+                                  "invoiceId": "%s",
+                                  "amount": 18500.00,
+                                  "status": "SUCCESS"
+                                }
+                                """.formatted(organizationId, invoiceId)))
+                .andExpect(status().isForbidden());
+
         JsonNode complaint = postJson("/complaints", """
                 {
                   "organizationId": "%s",
@@ -236,6 +253,21 @@ class ModuleApiIntegrationTests {
                 """.formatted(organizationId, tenantId, unitId, agreementId, disputeEvidenceImage), tenantToken, 201);
         String depositDisputeId = id(depositDispute);
 
+        mockMvc.perform(get("/deposit-disputes/{id}/settlement-advice", depositDisputeId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendedDeduction").exists())
+                .andExpect(jsonPath("$.suggestedRefund").exists())
+                .andExpect(jsonPath("$.rationale").isNotEmpty());
+
+        mockMvc.perform(get("/deposit-disputes/{id}/settlement-advice", depositDisputeId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/deposit-disputes/{id}/settlement-advice", depositDisputeId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(tenantToken)))
+                .andExpect(status().isForbidden());
+
         putJson("/deposit-disputes/" + depositDisputeId, """
                 {
                   "organizationId": "%s",
@@ -264,8 +296,6 @@ class ModuleApiIntegrationTests {
                   "agreementId": "%s",
                   "previousRent": 18500.00,
                   "proposedRent": 21000.00,
-                  "increaseAmount": 2500.00,
-                  "increasePercent": 13.5,
                   "noticeDate": "2027-02-01",
                   "effectiveDate": "2027-04-01",
                   "notificationScheduledAt": "2027-02-01T09:00:00",
@@ -285,8 +315,6 @@ class ModuleApiIntegrationTests {
                   "agreementId": "%s",
                   "previousRent": 18500.00,
                   "proposedRent": 21000.00,
-                  "increaseAmount": 2500.00,
-                  "increasePercent": 13.5,
                   "noticeDate": "2027-02-01",
                   "effectiveDate": "2027-04-01",
                   "notificationScheduledAt": "2027-02-01T09:00:00",
@@ -352,12 +380,188 @@ class ModuleApiIntegrationTests {
                 .andExpect(jsonPath("$.addressProofUrl").value(addressProofImage));
         mockMvc.perform(get("/deposit-disputes/{id}", depositDisputeId).header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
                 .andExpect(jsonPath("$.evidenceUrl").value(disputeEvidenceImage));
+
+        // Admin deletion is verified in dependency-safe order across every CRUD module.
+        deleteRecord("/payments", paymentId, adminToken);
+        deleteRecord("/complaints", complaintId, adminToken);
+        deleteRecord("/deposit-disputes", depositDisputeId, adminToken);
+        deleteRecord("/rent-increases", rentIncreaseId, adminToken);
+        deleteRecord("/approvals", approvalId, adminToken);
+        deleteRecord("/invoices", invoiceId, adminToken);
+        deleteRecord("/agreements", agreementId, adminToken);
+        deleteRecord("/tenants", tenantId, adminToken);
+        deleteRecord("/units", unitId, adminToken);
+        deleteRecord("/buildings", buildingId, adminToken);
+        deleteRecord("/properties", propertyId, adminToken);
+        deleteRecord("/users", tenantUserId, adminToken);
+        deleteRecord("/users", ownerUserId, adminToken);
+        deleteRecord("/organizations", organizationId, adminToken);
     }
 
     @Test
     void rejectsUnauthenticatedModuleAccess() throws Exception {
         mockMvc.perform(get("/organizations"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void ownerCannotEscalateToAdminRole() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String adminEmail = "esc-admin-" + suffix + "@example.com";
+        String ownerEmail = "esc-owner-" + suffix + "@example.com";
+
+        register(adminEmail, "ADMIN", null);
+        String adminToken = login(adminEmail);
+
+        JsonNode organization = postJson("/organizations", """
+                {
+                  "name": "Escalation Test Rentals",
+                  "address": "7 Privilege Path",
+                  "phone": "5550600",
+                  "email": "esc-%s@example.com"
+                }
+                """.formatted(suffix), adminToken, 201);
+        String organizationId = id(organization);
+
+        JsonNode ownerUser = postJson("/users", """
+                {
+                  "organizationId": "%s",
+                  "name": "Escape Owner",
+                  "email": "%s",
+                  "password": "Password123!",
+                  "role": "OWNER",
+                  "phone": "5550611"
+                }
+                """.formatted(organizationId, ownerEmail), adminToken, 201);
+        String ownerUserId = id(ownerUser);
+        String ownerToken = login(ownerEmail);
+
+        postJson("/users", """
+                {
+                  "organizationId": "%s",
+                  "name": "Sneaky Admin",
+                  "email": "sneaky-admin-%s@example.com",
+                  "password": "Password123!",
+                  "role": "ADMIN"
+                }
+                """.formatted(organizationId, suffix), ownerToken, 403);
+
+        putJson("/users/" + ownerUserId, """
+                {
+                  "organizationId": "%s",
+                  "name": "Escape Owner",
+                  "email": "%s",
+                  "role": "ADMIN",
+                  "phone": "5550612"
+                }
+                """.formatted(organizationId, ownerEmail), ownerToken, 403);
+
+        JsonNode allUsers = objectMapper.readTree(mockMvc.perform(
+                        get("/users").header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        String adminUserId = null;
+        for (JsonNode user : allUsers) {
+            if (adminEmail.equals(user.at("/email").asText())) {
+                adminUserId = user.at("/id").asText();
+            }
+        }
+        org.junit.jupiter.api.Assertions.assertNotNull(adminUserId);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .delete("/users/{id}", adminUserId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isForbidden());
+
+        putJson("/users/" + ownerUserId, """
+                {
+                  "organizationId": "%s",
+                  "name": "Escape Owner Updated",
+                  "email": "%s",
+                  "role": "OWNER",
+                  "phone": "5550613"
+                }
+                """.formatted(organizationId, ownerEmail), adminToken, 200);
+    }
+
+    @Test
+    void ownerDataAccessIsScopedToTheirOrganization() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String adminEmail = "scope-admin-" + suffix + "@example.com";
+        String ownerEmail = "scope-owner-" + suffix + "@example.com";
+
+        register(adminEmail, "ADMIN", null);
+        String adminToken = login(adminEmail);
+
+        JsonNode organizationA = postJson("/organizations", """
+                {
+                  "name": "Scope Org A",
+                  "address": "1 Boundary Blvd",
+                  "phone": "5550700",
+                  "email": "scope-a-%s@example.com"
+                }
+                """.formatted(suffix), adminToken, 201);
+        String organizationAId = id(organizationA);
+
+        JsonNode organizationB = postJson("/organizations", """
+                {
+                  "name": "Scope Org B",
+                  "address": "2 Boundary Blvd",
+                  "phone": "5550701",
+                  "email": "scope-b-%s@example.com"
+                }
+                """.formatted(suffix), adminToken, 201);
+        String organizationBId = id(organizationB);
+
+        JsonNode ownerUser = postJson("/users", """
+                {
+                  "organizationId": "%s",
+                  "name": "Scoped Owner",
+                  "email": "%s",
+                  "password": "Password123!",
+                  "role": "OWNER",
+                  "phone": "5550711"
+                }
+                """.formatted(organizationAId, ownerEmail), adminToken, 201);
+        String ownerUserId = id(ownerUser);
+        String ownerToken = login(ownerEmail);
+
+        JsonNode propertyA = postJson("/properties", propertyBody(organizationAId, ownerUserId, "Org A Property"), adminToken, 201);
+        JsonNode propertyB = postJson("/properties", propertyBody(organizationBId, ownerUserId, "Org B Property"), adminToken, 201);
+        JsonNode buildingA = postJson("/buildings", """
+                { "organizationId": "%s", "propertyId": "%s", "name": "Building A", "floors": 2 }
+                """.formatted(organizationAId, id(propertyA)), adminToken, 201);
+        JsonNode buildingB = postJson("/buildings", """
+                { "organizationId": "%s", "propertyId": "%s", "name": "Building B", "floors": 3 }
+                """.formatted(organizationBId, id(propertyB)), adminToken, 201);
+        postJson("/units", """
+                { "organizationId": "%s", "buildingId": "%s", "unitNumber": "A-1", "rentAmount": 12000, "status": "AVAILABLE" }
+                """.formatted(organizationAId, id(buildingA)), adminToken, 201);
+        postJson("/units", """
+                { "organizationId": "%s", "buildingId": "%s", "unitNumber": "B-1", "rentAmount": 14000, "status": "AVAILABLE" }
+                """.formatted(organizationBId, id(buildingB)), adminToken, 201);
+
+        MvcResult listResult = mockMvc.perform(get("/properties").header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode properties = objectMapper.readTree(listResult.getResponse().getContentAsString());
+        org.junit.jupiter.api.Assertions.assertEquals(1, properties.size());
+        org.junit.jupiter.api.Assertions.assertEquals("Org A Property", properties.get(0).at("/name").asText());
+
+        mockMvc.perform(get("/users").header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/organizations").header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isForbidden());
+
+        String marketplaceTenantEmail = "market-tenant-" + suffix + "@example.com";
+        register(marketplaceTenantEmail, "TENANT", null);
+        String marketplaceTenantToken = login(marketplaceTenantEmail);
+        mockMvc.perform(get("/properties").header(HttpHeaders.AUTHORIZATION, bearer(marketplaceTenantToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(2)));
+        mockMvc.perform(get("/buildings").header(HttpHeaders.AUTHORIZATION, bearer(marketplaceTenantToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(2)));
+        mockMvc.perform(get("/units").header(HttpHeaders.AUTHORIZATION, bearer(marketplaceTenantToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(2)));
     }
 
     @Test
@@ -373,6 +577,18 @@ class ModuleApiIntegrationTests {
                                   "email": "second-admin-%s@example.com",
                                   "password": "Password123!",
                                   "role": "ADMIN"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Unauthorized Owner",
+                                  "email": "self-owner-%s@example.com",
+                                  "password": "Password123!",
+                                  "role": "OWNER"
                                 }
                                 """.formatted(suffix)))
                 .andExpect(status().isForbidden());
@@ -530,7 +746,14 @@ class ModuleApiIntegrationTests {
                 .andExpect(jsonPath("$.organizationId").value(organizationId))
                 .andExpect(jsonPath("$.tenantId").value(tenantId))
                 .andExpect(jsonPath("$.unitId").value(unitId))
-                .andExpect(jsonPath("$.title").value("Bathroom exhaust not working"));
+                .andExpect(jsonPath("$.title").value("Bathroom exhaust not working"))
+                .andExpect(jsonPath("$.aiPriority").value(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.is("EMERGENCY"),
+                        org.hamcrest.Matchers.is("HIGH"),
+                        org.hamcrest.Matchers.is("MEDIUM"),
+                        org.hamcrest.Matchers.is("LOW"))))
+                .andExpect(jsonPath("$.aiCategory").isNotEmpty())
+                .andExpect(jsonPath("$.aiNote").isNotEmpty());
     }
 
     @Test
@@ -611,15 +834,18 @@ class ModuleApiIntegrationTests {
                 """.formatted(organizationId, buildingId), adminToken, 201);
         String unitId = id(unit);
 
-        assertRoleAccess("/organizations", 200, 200, 403, adminToken, ownerToken, tenantToken);
-        assertRoleAccess("/users", 200, 200, 403, adminToken, ownerToken, tenantToken);
+        assertRoleAccess("/organizations", 200, 403, 403, adminToken, ownerToken, tenantToken);
+        assertRoleAccess("/users", 200, 403, 403, adminToken, ownerToken, tenantToken);
 
         assertRoleAccess("/properties", 200, 200, 200, adminToken, ownerToken, tenantToken);
         assertRoleAccess("/buildings", 200, 200, 200, adminToken, ownerToken, tenantToken);
         assertRoleAccess("/units", 200, 200, 200, adminToken, ownerToken, tenantToken);
-        assertRoleAccess("/complaints", 200, 200, 200, adminToken, ownerToken, tenantToken);
-        assertRoleAccess("/deposit-disputes", 200, 200, 200, adminToken, ownerToken, tenantToken);
-        assertRoleAccess("/rent-increases", 200, 200, 200, adminToken, ownerToken, tenantToken);
+        assertRoleAccess("/complaints", 200, 200, 403, adminToken, ownerToken, tenantToken);
+        assertRoleAccess("/deposit-disputes", 200, 200, 403, adminToken, ownerToken, tenantToken);
+        assertRoleAccess("/rent-increases", 200, 200, 403, adminToken, ownerToken, tenantToken);
+        assertRoleAccess("/complaints/me", 403, 403, 200, adminToken, ownerToken, tenantToken);
+        assertRoleAccess("/deposit-disputes/me", 403, 403, 200, adminToken, ownerToken, tenantToken);
+        assertRoleAccess("/rent-increases/me", 403, 403, 200, adminToken, ownerToken, tenantToken);
 
         assertRoleAccess("/tenants", 200, 200, 403, adminToken, ownerToken, tenantToken);
         assertRoleAccess("/agreements", 200, 200, 403, adminToken, ownerToken, tenantToken);
@@ -684,6 +910,15 @@ class ModuleApiIntegrationTests {
         mockMvc.perform(get(basePath + "/{id}", id).header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id));
+    }
+
+    private void deleteRecord(String basePath, String id, String token) throws Exception {
+        mockMvc.perform(delete(basePath + "/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get(basePath + "/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isNotFound());
     }
 
     private void assertRoleAccess(

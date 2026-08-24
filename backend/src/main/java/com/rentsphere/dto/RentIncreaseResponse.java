@@ -22,8 +22,6 @@ public class RentIncreaseResponse {
     private UUID agreementId;
     private BigDecimal previousRent;
     private BigDecimal proposedRent;
-    private BigDecimal increaseAmount;
-    private BigDecimal increasePercent;
     private LocalDate noticeDate;
     private LocalDate effectiveDate;
     private LocalDateTime notificationScheduledAt;

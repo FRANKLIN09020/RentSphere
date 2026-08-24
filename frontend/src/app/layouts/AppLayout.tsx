@@ -4,7 +4,6 @@ import {
   Badge,
   Box,
   Button,
-  Chip,
   Divider,
   Drawer,
   IconButton,
@@ -19,6 +18,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
+import { alpha } from '@mui/material/styles'
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded'
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded'
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded'
@@ -30,14 +30,18 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../shared/auth/useAuth'
+import { http } from '../../shared/api/http'
 import { AmbientBackdrop, PageMotion } from '../../shared/ui/Motion'
+import { AppScrollbar } from '../../shared/ui/AppScrollbars'
 import { AssistantWidget } from '../../features/assistant/AssistantWidget'
 import { moduleConfigs } from '../../features/modules/moduleConfigs'
 import { moduleSortOrder } from '../../features/modules/moduleAccess'
 import { useModuleAccess } from '../../features/modules/useModuleAccess'
-import { formatRole, getEmailInitials, getRoleColor } from '../../shared/utils/format'
-import { useColorMode } from '../../shared/theme/ColorModeContext'
+import { formatRole, getEmailInitials } from '../../shared/utils/format'
+import { useColorMode } from '../../shared/theme/color-mode-context'
 import { useNotifications } from '../../shared/hooks/useNotifications'
+import { useLanguage } from '../../shared/i18n/language-context'
+import type { AppLanguage } from '../../shared/i18n/language-context'
 import {
   AgreementIcon,
   ApartmentIcon,
@@ -59,7 +63,7 @@ import {
 
 type NavItem = { to: string; label: string; icon: ReactNode }
 type NavSection = { label: string; items: NavItem[] }
-type LanguageOption = { code: string; label: string }
+type LanguageOption = { code: AppLanguage; label: string }
 
 const mainLinks: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: <DashboardIcon /> },
@@ -76,7 +80,7 @@ const LANGUAGES: LanguageOption[] = [
   { code: 'hi', label: 'हिन्दी' },
   { code: 'kn', label: 'ಕನ್ನಡ' },
 ]
-const LANGUAGE_STORAGE_KEY = 'rentsphere-language'
+const LANGUAGE_NAMES: Record<AppLanguage, string> = { en: 'English', ta: 'தமிழ்', hi: 'हिन्दी', kn: 'ಕನ್ನಡ' }
 
 const SIDEBAR_WIDTH_EXPANDED = 276
 const SIDEBAR_WIDTH_COLLAPSED = 88
@@ -84,8 +88,9 @@ const SIDEBAR_COLLAPSE_KEY = 'rentsphere-sidebar-collapsed'
 
 export function AppLayout() {
   const { session, logout } = useAuth()
-  const { mode, toggleColorMode } = useColorMode()
+  const { resolvedMode, toggleColorMode } = useColorMode()
   const { items: notifications, unreadCount, markAllRead, markRead } = useNotifications()
+  const { language, setLanguage, t } = useLanguage()
 
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(
@@ -94,9 +99,7 @@ export function AppLayout() {
   const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null)
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null)
   const [langAnchor, setLangAnchor] = useState<HTMLElement | null>(null)
-  const [language, setLanguage] = useState<string>(
-    () => (typeof window !== 'undefined' && window.localStorage.getItem(LANGUAGE_STORAGE_KEY)) || 'en',
-  )
+  const [organizationName, setOrganizationName] = useState('')
 
   const location = useLocation()
   const navigate = useNavigate()
@@ -108,11 +111,21 @@ export function AppLayout() {
     window.localStorage.setItem(SIDEBAR_COLLAPSE_KEY, collapsed ? '1' : '0')
   }, [collapsed])
 
-  const handleLanguageSelect = (code: string) => {
+  useEffect(() => {
+    let active = true
+    void http.get<{ organizationName?: string }>('/auth/me')
+      .then((response) => {
+        if (active) setOrganizationName(response.data.organizationName ?? '')
+      })
+      .catch(() => {
+        if (active) setOrganizationName('')
+      })
+    return () => { active = false }
+  }, [session?.email])
+
+  const handleLanguageSelect = (code: AppLanguage) => {
     setLanguage(code)
-    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, code)
     setLangAnchor(null)
-    // TODO: wire to i18next — i18n.changeLanguage(code)
   }
 
   const readableModules = useMemo(
@@ -160,6 +173,7 @@ export function AppLayout() {
 
   const pageMeta = useMemo(() => {
     if (location.pathname === '/') return { breadcrumb: roleLabel, title: 'Dashboard' }
+    if (location.pathname === '/profile') return { breadcrumb: 'Account', title: 'My profile' }
     if (location.pathname === '/approvals') return { breadcrumb: 'Workflow', title: approvalsLink.label }
     if (location.pathname === '/apartments') return { breadcrumb: 'Booking', title: apartmentsLink.label }
     const module = moduleConfigs.find((item) => `/${item.resource}` === location.pathname)
@@ -170,9 +184,9 @@ export function AppLayout() {
   const currentLanguage = LANGUAGES.find((option) => option.code === language) ?? LANGUAGES[0]
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: '100vh', overflow: 'hidden', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
       <AmbientBackdrop />
-      <Box sx={{ display: 'flex', flex: 1, minWidth: 0 }}>
+      <Box sx={{ display: 'flex', flex: 1, minWidth: 0, minHeight: 0 }}>
         <Box
           component="nav"
           aria-label="Main navigation"
@@ -180,12 +194,11 @@ export function AppLayout() {
             display: { xs: 'none', lg: 'block' },
             width: collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED,
             flexShrink: 0,
-            position: 'sticky',
-            top: 0,
-            height: '100vh',
-            borderRight: '1px solid rgba(148,163,184,0.16)',
-            bgcolor: '#0b1220',
-            backgroundImage: 'linear-gradient(180deg, #0b1220 0%, #0f3d3a 58%, #042f2e 100%)',
+            height: '100%',
+            borderRight: 1,
+            borderColor: 'divider',
+            bgcolor: 'var(--rs-nav)',
+            backgroundImage: 'linear-gradient(180deg, var(--rs-nav) 0%, var(--rs-nav-mid) 58%, var(--rs-nav-end) 100%)',
             transition: 'width 0.25s cubic-bezier(.22,1,.36,1)',
             overflow: 'hidden',
           }}
@@ -193,23 +206,21 @@ export function AppLayout() {
           <SidebarContent
             navSections={navSections}
             onNavigate={() => navigate('/')}
-            email={session?.email}
-            roleLabel={roleLabel}
             collapsed={collapsed}
             onToggleCollapse={() => setCollapsed((prev) => !prev)}
           />
         </Box>
 
-        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <AppBar
             color="inherit"
             elevation={0}
-            position="sticky"
+            position="static"
             sx={{
               zIndex: 1100,
               borderBottom: 1,
               borderColor: 'divider',
-              bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(17,26,46,0.86)' : 'rgba(255,255,255,0.9)'),
+              bgcolor: (theme) => alpha(theme.palette.background.paper, 0.9),
               backdropFilter: 'blur(18px)',
             }}
           >
@@ -229,7 +240,7 @@ export function AppLayout() {
                 </Tooltip>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="caption" sx={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.14, color: 'primary.main', lineHeight: 1.2 }}>
-                    {pageMeta.breadcrumb}
+                    {t(pageMeta.breadcrumb)}
                   </Typography>
                   <Typography
                     sx={{
@@ -241,22 +252,22 @@ export function AppLayout() {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {pageMeta.title}
+                    {t(pageMeta.title)}
                   </Typography>
                 </Box>
               </Stack>
 
               <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0, flexShrink: 0 }}>
                 {/* Theme switch */}
-                <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+                <Tooltip title={t(resolvedMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')}>
                   <IconButton onClick={toggleColorMode} aria-label="Toggle color mode">
-                    {mode === 'dark' ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
+                    {resolvedMode === 'dark' ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
                   </IconButton>
                 </Tooltip>
 
                 {/* Language switcher */}
-                <Tooltip title="Change language">
-                  <IconButton onClick={(event) => setLangAnchor(event.currentTarget)} aria-label="Change language">
+                <Tooltip title={t('Change language')}>
+                  <IconButton onClick={(event) => setLangAnchor(event.currentTarget)} aria-label={t('Change language')}>
                     <TranslateRoundedIcon />
                   </IconButton>
                 </Tooltip>
@@ -275,14 +286,14 @@ export function AppLayout() {
                       onClick={() => handleLanguageSelect(option.code)}
                       sx={{ borderRadius: 1.5, mx: 0.75, my: 0.15, fontWeight: 700 }}
                     >
-                      {option.label}
+                      {LANGUAGE_NAMES[option.code]}
                     </MenuItem>
                   ))}
                 </Menu>
 
                 {/* Notifications */}
-                <Tooltip title="Notifications">
-                  <IconButton onClick={(event) => setNotifAnchor(event.currentTarget)} aria-label="Notifications">
+                <Tooltip title={t('Notifications')}>
+                  <IconButton onClick={(event) => setNotifAnchor(event.currentTarget)} aria-label={t('Notifications')}>
                     <Badge badgeContent={unreadCount} color="error" max={9}>
                       <NotificationsRoundedIcon />
                     </Badge>
@@ -297,21 +308,25 @@ export function AppLayout() {
                   slotProps={{ paper: { sx: { borderRadius: 3, mt: 1, width: 340, maxHeight: 420 } } }}
                 >
                   <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25 }}>
-                    <Typography sx={{ fontWeight: 850 }}>Notifications</Typography>
+                    <Typography sx={{ fontWeight: 850 }}>{t('Notifications')}</Typography>
                     <Button size="small" onClick={markAllRead} disabled={unreadCount === 0} sx={{ textTransform: 'none', fontWeight: 700 }}>
-                      Mark all read
+                      {t('Mark all read')}
                     </Button>
                   </Stack>
                   <Divider />
                   {notifications.length === 0 && (
                     <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 3, textAlign: 'center' }}>
-                      You're all caught up.
+                      {t("You're all caught up.")}
                     </Typography>
                   )}
                   {notifications.map((item) => (
                     <MenuItem
                       key={item.id}
-                      onClick={() => markRead(item.id)}
+                      onClick={() => {
+                        markRead(item.id)
+                        setNotifAnchor(null)
+                        if (item.targetPath) navigate(item.targetPath)
+                      }}
                       sx={{ alignItems: 'flex-start', gap: 1, py: 1.1, whiteSpace: 'normal' }}
                     >
                       <CircleIcon
@@ -330,54 +345,36 @@ export function AppLayout() {
                   ))}
                 </Menu>
 
-                <Tooltip title="Profile">
-                  <Button
+                <Tooltip title={t('Profile')}>
+                  <IconButton
                     onClick={(event) => setProfileAnchor(event.currentTarget)}
+                    onMouseEnter={(event) => setProfileAnchor(event.currentTarget)}
+                    aria-label={t('Profile')}
                     sx={{
-                      display: { xs: 'none', sm: 'inline-flex' },
-                      alignItems: 'center',
-                      gap: 1.25,
-                      minWidth: 0,
-                      textTransform: 'none',
-                      borderRadius: 2.5,
-                      px: 1.25,
-                      py: 0.8,
                       ml: 0.5,
+                      width: 48,
+                      height: 48,
                       border: '1px solid',
                       borderColor: 'divider',
-                      bgcolor: 'action.hover',
-                      '&:hover': { bgcolor: 'rgba(13,148,136,0.08)', borderColor: 'rgba(13,148,136,0.4)' },
+                      bgcolor: 'background.paper',
+                      transition: 'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease',
+                      '&:hover': { bgcolor: 'action.hover', borderColor: 'primary.main', transform: 'translateY(-1px)', boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.primary.main, 0.2)}` },
                     }}
                   >
-                    <Badge overlap="circular" variant="dot" color="success">
-                      <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.dark', fontWeight: 900 }}>
-                        {getEmailInitials(session?.email)}
+                    <Badge overlap="circular" variant="dot" color="success" anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} sx={{ '& .MuiBadge-badge': { width: 10, height: 10, minWidth: 10, border: '2px solid', borderColor: 'background.paper' } }}>
+                      <Avatar sx={{ width: 38, height: 38, background: 'linear-gradient(135deg, var(--rs-primary), var(--rs-primary-hover))', color: 'primary.contrastText', fontWeight: 900, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.22)' }}>
+                        {session?.email?.charAt(0).toUpperCase() || 'U'}
                       </Avatar>
                     </Badge>
-                    <Box sx={{ minWidth: 0, textAlign: 'left' }}>
-                      <Typography sx={{ fontWeight: 850, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>
-                        {session?.email}
-                      </Typography>
-                      <Chip size="small" label={roleLabel} color={getRoleColor(session?.role)} sx={{ mt: 0.45, height: 22 }} />
-                    </Box>
-                  </Button>
+                  </IconButton>
                 </Tooltip>
-                <IconButton
-                  sx={{ display: { xs: 'inline-flex', sm: 'none' }, border: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}
-                  onClick={(event) => setProfileAnchor(event.currentTarget)}
-                  aria-label="Profile"
-                >
-                  <Avatar sx={{ width: 34, height: 34, bgcolor: 'primary.dark', fontWeight: 900, fontSize: 14 }}>
-                    {getEmailInitials(session?.email)}
-                  </Avatar>
-                </IconButton>
                 <Menu
                   anchorEl={profileAnchor}
                   open={Boolean(profileAnchor)}
                   onClose={() => setProfileAnchor(null)}
                   anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                   transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                  slotProps={{ paper: { sx: { borderRadius: 3, mt: 1, minWidth: 260, boxShadow: '0 24px 60px rgba(15,23,42,0.16)' } } }}
+                  slotProps={{ paper: { onMouseLeave: () => setProfileAnchor(null), sx: { borderRadius: 3, mt: 0.75, minWidth: 270, overflow: 'hidden' } } }}
                 >
                   <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
@@ -389,8 +386,13 @@ export function AppLayout() {
                           {session?.email}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700 }}>
-                          {roleLabel}
+                          {t(roleLabel)}
                         </Typography>
+                        {organizationName && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 700 }}>
+                            {organizationName}
+                          </Typography>
+                        )}
                       </Box>
                     </Stack>
                   </Box>
@@ -402,7 +404,7 @@ export function AppLayout() {
                     sx={{ borderRadius: 1.5, mx: 0.75, my: 0.15, gap: 1 }}
                   >
                     <DashboardIcon />
-                    <Typography sx={{ fontWeight: 700 }}>Dashboard</Typography>
+                    <Typography sx={{ fontWeight: 700 }}>{t('Dashboard')}</Typography>
                   </MenuItem>
                   <MenuItem
                     onClick={() => {
@@ -412,62 +414,68 @@ export function AppLayout() {
                     sx={{ borderRadius: 1.5, mx: 0.75, my: 0.15, gap: 1 }}
                   >
                     <ProfileIcon />
-                    <Typography sx={{ fontWeight: 700 }}>My profile</Typography>
+                    <Typography sx={{ fontWeight: 700 }}>{t('My profile')}</Typography>
                   </MenuItem>
                   <MenuItem
                     onClick={() => {
                       setProfileAnchor(null)
                       logout()
                     }}
-                    sx={{ borderRadius: 1.5, mx: 0.75, my: 0.15, gap: 1, color: 'error.main', '&:hover': { bgcolor: 'rgba(185,28,28,0.08)' } }}
+                    sx={{ borderRadius: 1.5, mx: 0.75, my: 0.15, gap: 1, color: 'error.main', '&:hover': { bgcolor: 'action.hover' } }}
                   >
                     <LogoutIcon />
-                    <Typography sx={{ fontWeight: 700 }}>Sign out</Typography>
+                    <Typography sx={{ fontWeight: 700 }}>{t('Sign out')}</Typography>
                   </MenuItem>
                 </Menu>
               </Stack>
             </Toolbar>
           </AppBar>
 
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <PageMotion key={location.pathname}><Outlet /></PageMotion>
-          </Box>
-
-          <Box
-            component="footer"
-            sx={{
-              borderTop: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'background.paper',
-              backdropFilter: 'blur(18px)',
-              px: { xs: 2, md: 3 },
-              py: 2.5,
-            }}
+          <AppScrollbar
+            sx={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}
           >
+            <Box sx={{ minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <PageMotion key={location.pathname}><Outlet /></PageMotion>
+              </Box>
+
+              <Box
+                component="footer"
+                sx={{
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                  px: { xs: 2, md: 3 },
+                  pr: { xs: 2, md: 13 },
+                  py: { xs: 2.5, md: 2.25 },
+                }}
+              >
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
               spacing={2}
               sx={{ justifyContent: 'space-between', alignItems: 'center', maxWidth: 1480, mx: 'auto' }}
             >
               <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
-                <Avatar sx={{ width: 34, height: 34, bgcolor: 'primary.main', color: '#fff', fontSize: 14, fontWeight: 900, borderRadius: 1.5 }}>
+                <Avatar sx={{ width: 34, height: 34, bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: 14, fontWeight: 900, borderRadius: 1.5 }}>
                   RS
                 </Avatar>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', lineHeight: 1.2 }}>RentSphere</Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                    Smart property management platform
+                    {t('Smart property management platform')}
                   </Typography>
                 </Box>
               </Stack>
 
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.75, sm: 2 }} sx={{ alignItems: { xs: 'flex-start', sm: 'center' } }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { xs: 'flex-start', sm: 'center' } }}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 650, fontSize: '0.8rem' }}>
-                  Help & support: use the AI assistant (bottom right) or contact your property admin.
+                  {t('Need help? Contact your property administrator or use the assistant.')}
                 </Typography>
-                <Button size="small" onClick={() => navigate('/')} sx={{ textTransform: 'none', fontWeight: 750, borderRadius: 1.5 }}>
-                  Back to Dashboard
-                </Button>
+                {location.pathname !== '/' && (
+                  <Button variant="outlined" size="small" onClick={() => navigate('/')} sx={{ textTransform: 'none', fontWeight: 750, borderRadius: 2, whiteSpace: 'nowrap' }}>
+                    {t('Back to dashboard')}
+                  </Button>
+                )}
               </Stack>
             </Stack>
 
@@ -478,14 +486,16 @@ export function AppLayout() {
                   © {new Date().getFullYear()} RentSphere. All rights reserved.
                 </Typography>
                 <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#22c55e', boxShadow: '0 0 0 4px rgba(34,197,94,0.16)' }} />
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'var(--rs-success)', boxShadow: '0 0 0 4px color-mix(in srgb, var(--rs-success) 16%, transparent)' }} />
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                    System online
+                    {t('All systems operational')}
                   </Typography>
                 </Stack>
               </Stack>
             </Box>
-          </Box>
+              </Box>
+            </Box>
+          </AppScrollbar>
         </Box>
       </Box>
 
@@ -499,10 +509,10 @@ export function AppLayout() {
           '& .MuiDrawer-paper': {
             width: 292,
             boxSizing: 'border-box',
-            bgcolor: '#0b1220',
+            bgcolor: 'var(--rs-nav)',
             color: '#e5e7eb',
             borderRight: 0,
-            backgroundImage: 'linear-gradient(180deg, #0b1220 0%, #0f3d3a 58%, #042f2e 100%)',
+            backgroundImage: 'linear-gradient(180deg, var(--rs-nav) 0%, var(--rs-nav-mid) 58%, var(--rs-nav-end) 100%)',
           },
         }}
       >
@@ -510,8 +520,6 @@ export function AppLayout() {
           navSections={navSections}
           onNavigate={() => setMobileOpen(false)}
           onClose={() => setMobileOpen(false)}
-          email={session?.email}
-          roleLabel={roleLabel}
           collapsed={false}
         />
       </Drawer>
@@ -525,19 +533,16 @@ function SidebarContent({
   navSections,
   onNavigate,
   onClose,
-  email,
-  roleLabel,
   collapsed,
   onToggleCollapse,
 }: {
   navSections: NavSection[]
   onNavigate: () => void
   onClose?: () => void
-  email?: string
-  roleLabel: string
   collapsed: boolean
   onToggleCollapse?: () => void
 }) {
+  const { t } = useLanguage()
   const sectionDelays = navSections.reduce<number[]>((delays) => {
     const start = delays.length ? delays[delays.length - 1] + navSections[delays.length - 1].items.length : 0
     delays.push(start)
@@ -564,7 +569,7 @@ function SidebarContent({
           width: 220,
           height: 220,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(45,212,191,0.22), transparent 70%)',
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--rs-primary-soft) 22%, transparent), transparent 70%)',
           pointerEvents: 'none',
           animation: 'navGlow 7s ease-in-out infinite',
           '@keyframes navGlow': { '0%,100%': { opacity: 0.5, transform: 'scale(1)' }, '50%': { opacity: 1, transform: 'scale(1.2)' } },
@@ -590,7 +595,7 @@ function SidebarContent({
               fontWeight: 950,
               borderRadius: 2,
               animation: 'logoPulse 2.8s ease-in-out infinite',
-              '@keyframes logoPulse': { '0%,100%': { boxShadow: '0 10px 26px rgba(13,148,136,0.4)' }, '50%': { boxShadow: '0 10px 34px rgba(45,212,191,0.7)' } },
+              '@keyframes logoPulse': { '0%,100%': { boxShadow: '0 10px 26px color-mix(in srgb, var(--rs-primary) 40%, transparent)' }, '50%': { boxShadow: '0 10px 34px color-mix(in srgb, var(--rs-primary-soft) 70%, transparent)' } },
               transition: 'transform 0.25s ease',
               '&:hover': { transform: 'rotate(-8deg) scale(1.08)' },
             }}
@@ -630,14 +635,14 @@ function SidebarContent({
         </Tooltip>
       )}
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
-        <Box data-app-scrollbars sx={{ overflowY: 'auto', overflowX: 'hidden', pr: 0.5, minHeight: 0 }}>
+        <AppScrollbar sx={{ pr: 0.5, minHeight: 0 }}>
           {navSections.map((section, sectionIndex) => {
             const delayBase = 0.28 + sectionDelays[sectionIndex] * 0.055
             return (
               <Box key={section.label} sx={{ mb: 2, animation: 'sectionIn 0.5s ease both', animationDelay: `${delayBase}s`, '@keyframes sectionIn': { from: { opacity: 0 }, to: { opacity: 1 } } }}>
                 {!collapsed && (
                   <Typography variant="caption" sx={{ color: '#9fb0c7', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.14, fontSize: '0.62rem', px: 1 }}>
-                    {section.label}
+                    {t(section.label)}
                   </Typography>
                 )}
                 <List dense disablePadding sx={{ mt: collapsed ? 0 : 0.6 }}>
@@ -648,7 +653,7 @@ function SidebarContent({
               </Box>
             )
           })}
-        </Box>
+        </AppScrollbar>
       </Box>
 {/* 
       {!collapsed && (
@@ -658,7 +663,7 @@ function SidebarContent({
             border: '1px solid rgba(255,255,255,0.12)',
             borderRadius: 2,
             p: 1.5,
-            bgcolor: 'rgba(13,148,136,0.18)',
+            bgcolor: 'color-mix(in srgb, var(--rs-primary) 18%, transparent)',
             overflow: 'hidden',
             animation: 'statusIn 0.6s cubic-bezier(.22,1,.36,1) both',
             animationDelay: `${0.34 + sectionDelays.length * 0.055}s`,
@@ -686,7 +691,7 @@ function SidebarContent({
         }}
       >
         <Tooltip title={collapsed ? `${email ?? ''} · ${roleLabel}` : ''} placement="right">
-          <Avatar className="sidebar-user-avatar" sx={{ width: 34, height: 34, bgcolor: 'primary.dark', fontWeight: 900, color: '#ffffff', transition: 'transform 0.25s ease', boxShadow: '0 6px 16px rgba(13,148,136,0.35)' }}>
+          <Avatar className="sidebar-user-avatar" sx={{ width: 34, height: 34, bgcolor: 'primary.dark', fontWeight: 900, color: '#ffffff', transition: 'transform 0.25s ease', boxShadow: '0 6px 16px color-mix(in srgb, var(--rs-primary) 35%, transparent)' }}>
             {getEmailInitials(email)}
           </Avatar>
         </Tooltip>
@@ -704,6 +709,7 @@ function SidebarContent({
 }
 
 function SidebarLink({ link, onNavigate, delay = 0, collapsed }: { link: NavItem; onNavigate: () => void; delay?: number; collapsed: boolean }) {
+  const { t } = useLanguage()
   const button = (
     <ListItemButton
       component={NavLink}
@@ -732,8 +738,8 @@ function SidebarLink({ link, onNavigate, delay = 0, collapsed }: { link: NavItem
           height: 0,
           transform: 'translateY(-50%)',
           borderRadius: '0 4px 4px 0',
-          background: 'linear-gradient(180deg, #2dd4bf, #5eead4)',
-          boxShadow: '0 0 12px rgba(45,212,191,0.55)',
+          background: 'linear-gradient(180deg, var(--rs-primary), var(--rs-primary-soft))',
+          boxShadow: '0 0 12px color-mix(in srgb, var(--rs-primary-soft) 55%, transparent)',
           transition: 'height 0.3s cubic-bezier(.22,1,.36,1)',
         },
         '&::after': {
@@ -754,23 +760,23 @@ function SidebarLink({ link, onNavigate, delay = 0, collapsed }: { link: NavItem
         },
         '&.active': {
           color: '#ffffff',
-          bgcolor: 'rgba(13,148,136,0.3)',
+          bgcolor: 'color-mix(in srgb, var(--rs-primary) 30%, transparent)',
           '&::before': { height: '70%' },
-          '& .MuiListItemIcon-root': { color: '#5eead4' },
+          '& .MuiListItemIcon-root': { color: 'var(--rs-primary-soft)' },
         },
       }}
     >
       <ListItemIcon sx={{ minWidth: collapsed ? 0 : 38, color: 'inherit', transition: 'transform 0.25s cubic-bezier(.22,1,.36,1), color 0.25s ease' }}>
         {link.icon}
       </ListItemIcon>
-      {!collapsed && <ListItemText primary={<Typography sx={{ fontWeight: 760, fontSize: '0.9rem' }}>{link.label}</Typography>} />}
+      {!collapsed && <ListItemText primary={<Typography sx={{ fontWeight: 760, fontSize: '0.9rem' }}>{t(link.label)}</Typography>} />}
     </ListItemButton>
   )
 
   if (!collapsed) return button
 
   return (
-    <Tooltip title={link.label} placement="right">
+    <Tooltip title={t(link.label)} placement="right">
       {button}
     </Tooltip>
   )

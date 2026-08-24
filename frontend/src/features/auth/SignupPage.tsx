@@ -87,7 +87,7 @@ export function SignupPage() {
             Create your RentSphere account.
           </Typography>
           <Typography color="#cbd5e1">
-            Create an owner or tenant account and start managing rental operations from the dashboard.
+            Create a tenant account to browse apartments, pay invoices and manage your requests. Owner accounts are provisioned by your administrator.
           </Typography>
         </Box>
       </Box>
@@ -106,10 +106,8 @@ export function SignupPage() {
               <TextField label="Email" type="email" value={form.email} required onChange={(event) => setForm({ ...form, email: event.target.value })} />
               <TextField label="Password" type="password" value={form.password} required onChange={(event) => setForm({ ...form, password: event.target.value })} />
               <TextField label="Phone" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
-              <TextField label="Organization ID" value={form.organizationId} onChange={(event) => setForm({ ...form, organizationId: event.target.value })} />
               <TextField select label="Role" value={form.role} required onChange={(event) => setForm({ ...form, role: event.target.value as UserRole })}>
                 <MenuItem value="TENANT">TENANT</MenuItem>
-                <MenuItem value="OWNER">OWNER</MenuItem>
               </TextField>
               <Button type="submit" variant="contained" size="large" startIcon={<AddIcon />} disabled={loading}>
                 {loading ? 'Creating account...' : 'Create account'}

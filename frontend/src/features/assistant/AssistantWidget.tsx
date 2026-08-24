@@ -445,7 +445,6 @@ export function AssistantWidget() {
           >
             {/* Header */}
             <Box
-              data-app-scrollbars
               sx={{
                 p: 1.5,
                 display: 'flex',
@@ -621,7 +620,7 @@ export function AssistantWidget() {
                     sx={{
                       width: 52,
                       height: 52,
-                      bgcolor: 'rgba(13,148,136,0.08)',
+                      bgcolor: 'color-mix(in srgb, var(--rs-primary) 8%, transparent)',
                       color: 'primary.main',
                       fontSize: 24,
                       fontWeight: 900,
@@ -661,7 +660,7 @@ export function AssistantWidget() {
                       bgcolor: message.role === 'user' ? 'primary.main' : 'grey.50',
                       color: message.role === 'user' ? '#fff' : 'text.primary',
                       boxShadow: message.role === 'user'
-                        ? '0 4px 14px rgba(13,148,136,0.22)'
+                        ? '0 4px 14px color-mix(in srgb, var(--rs-primary) 22%, transparent)'
                         : '0 2px 8px rgba(0,0,0,0.04)',
                       border: message.role === 'assistant' ? '1px solid' : 'none',
                       borderColor: 'divider',
@@ -735,11 +734,11 @@ export function AssistantWidget() {
                         borderRadius: '8px',
                         fontWeight: 600,
                         fontSize: '0.7rem',
-                        bgcolor: 'rgba(13,148,136,0.06)',
+                        bgcolor: 'color-mix(in srgb, var(--rs-primary) 6%, transparent)',
                         color: 'primary.main',
-                        border: '1px solid rgba(13,148,136,0.14)',
+                        border: '1px solid color-mix(in srgb, var(--rs-primary) 14%, transparent)',
                         cursor: 'pointer',
-                        '&:hover': { bgcolor: 'rgba(13,148,136,0.12)' },
+                        '&:hover': { bgcolor: 'color-mix(in srgb, var(--rs-primary) 12%, transparent)' },
                       }}
                     />
                   ))}
@@ -800,7 +799,7 @@ export function AssistantWidget() {
               height: 58,
               bgcolor: 'primary.main',
               color: '#fff',
-              boxShadow: '0 14px 34px rgba(13,148,136,0.4)',
+              boxShadow: '0 14px 34px color-mix(in srgb, var(--rs-primary) 40%, transparent)',
               '&:hover': { bgcolor: 'primary.dark' },
             }}
           >

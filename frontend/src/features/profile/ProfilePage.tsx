@@ -26,6 +26,7 @@ type UserProfile = {
   phone?: string
   role: string
   organizationId?: string
+  organizationName?: string
   createdAt?: string
 }
 
@@ -102,12 +103,6 @@ export function ProfilePage() {
   return (
     <Box component="section" sx={{ p: { xs: 2, md: 3.5 }, maxWidth: 1080 }}>
       <Stack spacing={2.5}>
-        <Box>
-          <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 900 }}>Account</Typography>
-          <Typography variant="h4">My profile</Typography>
-          <Typography color="text.secondary">View your account details, edit your profile, and manage your password.</Typography>
-        </Box>
-
         {error && <Alert severity="error">{error}</Alert>}
         {loading && <LinearProgress />}
 
@@ -138,9 +133,9 @@ export function ProfilePage() {
                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
                       {profile.phone || 'No phone on file'}
                     </Typography>
-                    {profile.organizationId && (
+                    {(profile.organizationName || profile.organizationId) && (
                       <Typography variant="body2" sx={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 280 }}>
-                        Org: {profile.organizationId}
+                        Organization: {profile.organizationName || profile.organizationId}
                       </Typography>
                     )}
                     {memberSince && <Typography variant="body2" sx={{ fontWeight: 700 }}>Member since {memberSince}</Typography>}

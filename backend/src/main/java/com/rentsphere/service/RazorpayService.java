@@ -63,6 +63,23 @@ public class RazorpayService {
             throw new IllegalArgumentException("Invoice is already paid");
         }
         ensureKeysConfigured();
+        Payment existingPending = paymentRepository
+                .findFirstByInvoiceIdAndStatusOrderByCreatedAtDesc(invoiceId, PaymentStatus.PENDING)
+                .orElse(null);
+        if (existingPending != null && existingPending.getRazorpayOrderId() != null
+                && !existingPending.getRazorpayOrderId().isBlank()) {
+            RazorpayCreateOrderResponse reconciled = reconcilePaidOrder(existingPending, invoice);
+            if (reconciled != null) {
+                return reconciled;
+            }
+            return RazorpayCreateOrderResponse.builder()
+                    .orderId(existingPending.getRazorpayOrderId())
+                    .amount(invoice.getAmount().movePointRight(2).longValueExact())
+                    .currency(CURRENCY_INR)
+                    .keyId(properties.getKeyId())
+                    .paymentCompleted(false)
+                    .build();
+        }
         try {
             long amountInPaise = invoice.getAmount().movePointRight(2).longValueExact();
             JSONObject orderRequest = new JSONObject();
@@ -87,6 +104,7 @@ public class RazorpayService {
                     .amount(amountInPaise)
                     .currency(CURRENCY_INR)
                     .keyId(properties.getKeyId())
+                    .paymentCompleted(false)
                     .build();
         } catch (RazorpayException | JSONException e) {
             throw new IllegalStateException("Failed to create Razorpay order", e);
@@ -100,11 +118,16 @@ public class RazorpayService {
             throw new IllegalArgumentException("Payment signature verification failed");
         }
 
-        Payment payment = paymentRepository.findByRazorpayOrderId(razorpayOrderId).orElse(null);
+        Payment payment = paymentRepository
+                .findFirstByRazorpayOrderIdOrderByCreatedAtDesc(razorpayOrderId)
+                .orElse(null);
         if (payment != null && !invoiceId.equals(payment.getInvoiceId())) {
             throw new IllegalArgumentException("Razorpay order does not match the invoice");
         }
         if (payment != null && payment.getStatus() == PaymentStatus.SUCCESS) {
+            if (invoice.getStatus() != com.rentsphere.entity.InvoiceStatus.PAID) {
+                invoiceService.markPaid(invoiceId);
+            }
             return payment;
         }
         if (payment == null && paymentRepository.existsByInvoiceIdAndStatus(invoiceId, PaymentStatus.SUCCESS)) {
@@ -139,7 +162,7 @@ public class RazorpayService {
             }
 
             if ("payment.captured".equals(event)) {
-                paymentRepository.findByRazorpayOrderId(orderId).ifPresentOrElse(pending -> {
+                paymentRepository.findFirstByRazorpayOrderIdOrderByCreatedAtDesc(orderId).ifPresentOrElse(pending -> {
                     if (pending.getStatus() != PaymentStatus.SUCCESS) {
                         pending.setStatus(PaymentStatus.SUCCESS);
                         pending.setPaymentDate(LocalDateTime.now());
@@ -166,6 +189,52 @@ public class RazorpayService {
 
     public boolean verifyWebhookSignature(String body, String signature) {
         return verifyHmac(body, properties.getWebhookSecret(), signature);
+    }
+
+    /**
+     * Checkout cannot reopen an order that Razorpay already considers paid. If
+     * the browser callback previously failed, recover the authoritative gateway
+     * result before returning an order to Checkout again.
+     */
+    private RazorpayCreateOrderResponse reconcilePaidOrder(Payment pending, Invoice invoice) {
+        try {
+            Order gatewayOrder = razorpayClient.orders.fetch(pending.getRazorpayOrderId());
+            Object rawStatus = gatewayOrder.get("status");
+            if (rawStatus == null || !"paid".equalsIgnoreCase(rawStatus.toString())) {
+                return null;
+            }
+
+            java.util.List<com.razorpay.Payment> gatewayPayments =
+                    razorpayClient.orders.fetchPayments(pending.getRazorpayOrderId());
+            com.razorpay.Payment gatewayPayment = gatewayPayments.stream()
+                    .filter(item -> {
+                        Object status = item.get("status");
+                        return status != null && ("captured".equalsIgnoreCase(status.toString())
+                                || "authorized".equalsIgnoreCase(status.toString()));
+                    })
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Paid Razorpay order has no successful payment"));
+            Object rawPaymentId = gatewayPayment.get("id");
+            if (rawPaymentId == null || rawPaymentId.toString().isBlank()) {
+                throw new IllegalStateException("Razorpay payment is missing its id");
+            }
+
+            paymentService.recordSuccessfulPayment(
+                    pending.getRazorpayOrderId(), invoice.getId(), invoice.getAmount(),
+                    invoice.getOrganizationId(), rawPaymentId.toString());
+            invoiceService.markPaid(invoice.getId());
+            return RazorpayCreateOrderResponse.builder()
+                    .orderId(pending.getRazorpayOrderId())
+                    .amount(invoice.getAmount().movePointRight(2).longValueExact())
+                    .currency(CURRENCY_INR)
+                    .keyId(properties.getKeyId())
+                    .paymentCompleted(true)
+                    .build();
+        } catch (RazorpayException exception) {
+            log.warn("Unable to reconcile Razorpay order {}; Checkout will retry it",
+                    pending.getRazorpayOrderId(), exception);
+            return null;
+        }
     }
 
     private boolean verifyHmac(String payload, String secret, String expectedSignature) {

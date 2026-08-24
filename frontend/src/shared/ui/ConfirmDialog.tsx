@@ -1,0 +1,5 @@
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material'
+
+export function ConfirmDialog({ open, title, description, confirmLabel = 'Confirm', cancelLabel = 'Cancel', destructive = false, busy = false, onConfirm, onClose }: { open: boolean; title: string; description: string; confirmLabel?: string; cancelLabel?: string; destructive?: boolean; busy?: boolean; onConfirm: () => void; onClose: () => void }) {
+  return <Dialog open={open} onClose={busy ? undefined : onClose} aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-description"><DialogTitle id="confirm-dialog-title">{title}</DialogTitle><DialogContent><DialogContentText id="confirm-dialog-description">{description}</DialogContentText></DialogContent><DialogActions><Button onClick={onClose} disabled={busy}>{cancelLabel}</Button><Button variant="contained" color={destructive ? 'error' : 'primary'} onClick={onConfirm} loading={busy} autoFocus>{confirmLabel}</Button></DialogActions></Dialog>
+}

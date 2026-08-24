@@ -79,7 +79,6 @@ export function LoginPage() {
               <Box>
                 <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 900 }}>Sign in</Typography>
                 <Typography variant="h4">Welcome back</Typography>
-                <Typography color="text.secondary">Use your admin, owner, or tenant account to continue.</Typography>
               </Box>
               {signupMessage && <Alert severity="success">{signupMessage}</Alert>}
               {error && <Alert severity="error">{error}</Alert>}

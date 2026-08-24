@@ -24,9 +24,10 @@ export function useModuleData(config: ModuleConfig) {
     setLoading(true)
     setError('')
     try {
-      const isTenantOwnedFinancialResource = role === 'TENANT'
-        && (config.resource === 'invoices' || config.resource === 'payments')
-      const endpoint = isTenantOwnedFinancialResource ? `/${config.resource}/me` : `/${config.resource}`
+      const tenantOwnedResources = new Set(['invoices', 'payments', 'complaints', 'deposit-disputes', 'rent-increases'])
+      const endpoint = role === 'TENANT' && tenantOwnedResources.has(config.resource)
+        ? `/${config.resource}/me`
+        : `/${config.resource}`
       const response = await http.get<RecordData[]>(endpoint)
       setRecords(response.data)
       setLastUpdated(new Date())

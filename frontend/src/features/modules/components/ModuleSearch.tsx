@@ -25,8 +25,8 @@ export function ModuleSearch({
             bgcolor: 'rgba(148,163,184,0.05)',
             transition: 'all 0.25s ease',
             '&.Mui-focused': {
-              bgcolor: '#fff',
-              boxShadow: '0 0 0 3px rgba(13,148,136,0.16)',
+              bgcolor: 'background.paper',
+              boxShadow: (theme) => `0 0 0 3px ${theme.palette.action.focus}`,
             },
             '&:hover': {
               bgcolor: 'rgba(148,163,184,0.1)',

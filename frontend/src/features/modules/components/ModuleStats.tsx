@@ -1,23 +1,24 @@
 import { Box, Stack, Typography } from '@mui/material'
 import type { ModuleConfig, RecordData } from '../types'
 import { getModuleProfile, getCategoryAccent } from '../moduleProfile'
+import { brandColors } from '../../../app/theme'
 
 const statusColors: Record<string, string> = {
-  PAID: '#15803d',
-  SUCCESS: '#15803d',
-  RESOLVED: '#15803d',
-  ACTIVE: '#15803d',
-  AVAILABLE: '#0d9488',
-  VERIFIED: '#0d9488',
-  ACCEPTED: '#15803d',
-  SETTLED: '#15803d',
-  PENDING: '#b45309',
-  OPEN: '#b91c1c',
-  IN_PROGRESS: '#2563eb',
-  OVERDUE: '#b91c1c',
-  MAINTENANCE: '#b45309',
-  REJECTED: '#b91c1c',
-  EXPIRED: '#64748b',
+  PAID: brandColors.success,
+  SUCCESS: brandColors.success,
+  RESOLVED: brandColors.success,
+  ACTIVE: brandColors.success,
+  AVAILABLE: brandColors.primary,
+  VERIFIED: brandColors.primary,
+  ACCEPTED: brandColors.success,
+  SETTLED: brandColors.success,
+  PENDING: brandColors.warning,
+  OPEN: brandColors.error,
+  IN_PROGRESS: brandColors.info,
+  OVERDUE: brandColors.error,
+  MAINTENANCE: brandColors.warning,
+  REJECTED: brandColors.error,
+  EXPIRED: brandColors.muted,
 }
 
 export function ModuleStats({

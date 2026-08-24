@@ -2,31 +2,46 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   min-width: 320px;
-  background: #f3f6fa;
-  overflow-x: hidden;
+  background: Canvas;
 }
 
-.os-theme-rentsphere {
-  --os-size: 7px;
-  --os-padding-perpendicular: 1px;
-  --os-padding-axis: 1px;
-  --os-track-bg: transparent;
-  --os-track-bg-hover: rgba(148, 163, 184, 0.1);
-  --os-handle-bg: rgba(13, 148, 136, 0.52);
-  --os-handle-bg-hover: rgba(13, 148, 136, 0.78);
-  --os-handle-bg-active: #0f766e;
-  --os-handle-border-radius: 999px;
+[data-app-scrollbars] {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--rs-primary) 52%, transparent) transparent;
 }
 
-[data-color-scheme='dark'] .os-theme-rentsphere {
-  --os-track-bg-hover: rgba(255, 255, 255, 0.08);
-  --os-handle-bg: rgba(45, 212, 191, 0.5);
-  --os-handle-bg-hover: rgba(94, 234, 212, 0.78);
+[data-app-scrollbars]::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
 }
 
+[data-app-scrollbars]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-app-scrollbars]::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--rs-primary) 52%, transparent);
+  border-radius: 999px;
+}
+
+[data-app-scrollbars]::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--rs-primary) 78%, transparent);
+}
+
+[data-color-scheme='dark'] [data-app-scrollbars] {
+  scrollbar-color: color-mix(in srgb, var(--rs-primary-soft) 50%, transparent) transparent;
+}
 
 
 a {
@@ -34,18 +49,18 @@ a {
   text-decoration: none;
 }
 
-::selection { background: rgba(13, 148, 136, 0.28); }
+::selection { background: color-mix(in srgb, var(--rs-primary) 28%, transparent); }
 
 .ambient-backdrop { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
 .ambient-orb { position: absolute; border-radius: 999px; filter: blur(2px); opacity: .48; will-change: transform; }
-.ambient-orb-one { width: 44rem; height: 44rem; right: -18rem; top: -19rem; background: radial-gradient(circle, rgba(13,148,136,.22), rgba(20,184,166,.06) 54%, transparent 72%); animation: ambient-drift 18s ease-in-out infinite alternate; }
-.ambient-orb-two { width: 36rem; height: 36rem; left: 12%; bottom: -25rem; background: radial-gradient(circle, rgba(37,99,235,.12), transparent 70%); animation: ambient-drift 24s ease-in-out infinite alternate-reverse; }
+.ambient-orb-one { width: 44rem; height: 44rem; right: -18rem; top: -19rem; background: radial-gradient(circle, color-mix(in srgb, var(--rs-primary) 22%, transparent), color-mix(in srgb, var(--rs-primary) 6%, transparent) 54%, transparent 72%); animation: ambient-drift 18s ease-in-out infinite alternate; }
+.ambient-orb-two { width: 36rem; height: 36rem; left: 12%; bottom: -25rem; background: radial-gradient(circle, color-mix(in srgb, var(--rs-accent) 12%, transparent), transparent 70%); animation: ambient-drift 24s ease-in-out infinite alternate-reverse; }
 .ambient-grid { position: absolute; inset: 0; opacity: .32; background-image: linear-gradient(rgba(15,23,42,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,.025) 1px, transparent 1px); background-size: 42px 42px; mask-image: linear-gradient(to bottom, black, transparent 78%); }
 .page-motion { position: relative; z-index: 1; animation: page-enter .52s cubic-bezier(.22,1,.36,1) both; }
 .spotlight-surface { --spot-x: 50%; --spot-y: 50%; position: relative; isolation: isolate; overflow: hidden; }
-.spotlight-surface::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0; background: radial-gradient(420px circle at var(--spot-x) var(--spot-y), rgba(13,148,136,.16), transparent 62%); transition: opacity .35s ease; }
+.spotlight-surface::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0; background: radial-gradient(420px circle at var(--spot-x) var(--spot-y), color-mix(in srgb, var(--rs-primary) 16%, transparent), transparent 62%); transition: opacity .35s ease; }
 .spotlight-surface:hover::before { opacity: 1; }
-.auth-visual::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 72% 22%, rgba(13,148,136,.24), transparent 30%), linear-gradient(to top, rgba(4,10,22,.92), rgba(4,10,22,.08) 72%); }
+.auth-visual::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 72% 22%, color-mix(in srgb, var(--rs-primary) 24%, transparent), transparent 30%), linear-gradient(to top, rgba(4,10,22,.92), rgba(4,10,22,.08) 72%); }
 .auth-content { position: relative; z-index: 1; animation: content-rise .72s .08s cubic-bezier(.22,1,.36,1) both; }
 .auth-card { animation: card-arrive .65s .12s cubic-bezier(.22,1,.36,1) both; }
 

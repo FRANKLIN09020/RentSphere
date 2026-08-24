@@ -95,9 +95,15 @@ Request body:
 Allowed roles:
 
 ```text
-ADMIN
-OWNER
 TENANT
+```
+
+Registration policy:
+
+```text
+TENANT  -> self-registration allowed
+ADMIN   -> only the very first account (bootstrap); afterwards created via /users by an administrator
+OWNER   -> always created via /users by an administrator (403 on self-registration)
 ```
 
 Success response:

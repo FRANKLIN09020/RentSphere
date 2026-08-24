@@ -1,18 +1,23 @@
 package com.rentsphere.service;
 
-import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.rentsphere.exception.ResourceNotFoundException;
+import com.rentsphere.entity.BaseEntity;
 import com.rentsphere.security.SecurityUtils;
 
 public abstract class BaseCrudService<T> {
@@ -31,6 +36,63 @@ public abstract class BaseCrudService<T> {
 
     protected boolean isAdmin() {
         return SecurityUtils.isAdmin();
+    }
+
+    protected List<T> findAllScoped(Function<UUID, List<T>> organizationFetcher) {
+        if (SecurityUtils.isAdmin()) {
+            return repository.findAll();
+        }
+        UUID organizationId = getCurrentOrganizationId();
+        if (organizationId == null) {
+            return List.of();
+        }
+        return organizationFetcher.apply(organizationId);
+    }
+
+    protected Page<T> findAllScoped(Pageable pageable, BiFunction<UUID, Pageable, Page<T>> organizationFetcher) {
+        if (SecurityUtils.isAdmin()) {
+            return repository.findAll(pageable);
+        }
+        UUID organizationId = getCurrentOrganizationId();
+        if (organizationId == null) {
+            return Page.empty(pageable);
+        }
+        return organizationFetcher.apply(organizationId, pageable);
+    }
+
+    /**
+     * Blocks staff users from reading or mutating records that belong to another
+     * organization. Admins are unrestricted and tenants rely on the explicit
+     * ownership checks performed by controllers and self-service flows.
+     */
+    protected void assertAccessible(T entity) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return;
+        }
+        if (SecurityUtils.isAdmin() || SecurityUtils.isTenant()) {
+            return;
+        }
+        UUID currentOrganizationId = getCurrentOrganizationId();
+        if (currentOrganizationId == null) {
+            throw new AccessDeniedException("Your account is not linked to an organization");
+        }
+        UUID entityOrganizationId = extractOrganizationId(entity);
+        if (entityOrganizationId != null && !entityOrganizationId.equals(currentOrganizationId)) {
+            throw new AccessDeniedException("This record belongs to another organization");
+        }
+    }
+
+    private UUID extractOrganizationId(T entity) {
+        try {
+            Object value = entity.getClass().getMethod("getOrganizationId").invoke(entity);
+            return value instanceof UUID uuid ? uuid : null;
+        } catch (NoSuchMethodException e) {
+            return null;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(
+                    "Unable to read organizationId from " + entity.getClass().getSimpleName(), e);
+        }
     }
 
     /**
@@ -55,7 +117,7 @@ public abstract class BaseCrudService<T> {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheResolver = "baseCrudCacheResolver")
+    @Cacheable(cacheResolver = "baseCrudCacheResolver", key = "T(com.rentsphere.security.SecurityUtils).cacheScopeKey()")
     public List<T> findAll() {
         return repository.findAll();
     }
@@ -68,8 +130,10 @@ public abstract class BaseCrudService<T> {
     @Transactional(readOnly = true)
     @Cacheable(cacheResolver = "baseCrudCacheResolver", key = "#id")
     public T findById(UUID id) {
-        return repository.findById(id)
+        T entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(resourceName, id));
+        assertAccessible(entity);
+        return entity;
     }
 
     @Transactional
@@ -85,25 +149,13 @@ public abstract class BaseCrudService<T> {
     public void delete(UUID id) {
         T entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(resourceName, id));
-        setDeletedField(entity, true);
-        setDeletedAtField(entity, LocalDateTime.now());
+        assertAccessible(entity);
+        if (!(entity instanceof BaseEntity baseEntity)) {
+            throw new IllegalStateException(resourceName + " does not support soft deletion");
+        }
+        baseEntity.setDeleted(true);
+        baseEntity.setDeletedAt(LocalDateTime.now());
         repository.save(entity);
-    }
-
-    private void setDeletedField(T entity, boolean deleted) {
-        try {
-            Method setter = entity.getClass().getMethod("setDeleted", boolean.class);
-            setter.invoke(entity, deleted);
-        } catch (Exception ignored) {
-        }
-    }
-
-    private void setDeletedAtField(T entity, LocalDateTime deletedAt) {
-        try {
-            Method setter = entity.getClass().getMethod("setDeletedAt", LocalDateTime.class);
-            setter.invoke(entity, deletedAt);
-        } catch (Exception ignored) {
-        }
     }
 
     protected abstract void applyUpdates(T entity, T request);

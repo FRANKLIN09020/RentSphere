@@ -26,6 +26,7 @@ import com.rentsphere.entity.User;
 import com.rentsphere.exception.ResourceNotFoundException;
 import com.rentsphere.security.SecurityUtils;
 import com.rentsphere.service.InvoiceService;
+import com.rentsphere.service.AgreementService;
 import com.rentsphere.service.TenantService;
 import com.rentsphere.service.UserService;
 
@@ -41,6 +42,7 @@ public class InvoiceController {
     private final InvoiceService invoiceService;
     private final UserService userService;
     private final TenantService tenantService;
+    private final AgreementService agreementService;
 
     @GetMapping("/me")
     @PreAuthorize("hasRole('TENANT')")
@@ -49,7 +51,13 @@ public class InvoiceController {
         User user = userService.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "current"));
         UUID tenantId = tenantService.findOrCreateForUser(user).getId();
-        return DtoMapper.toResponseList(invoiceService.findByTenantId(tenantId), DtoMapper::toResponse);
+        return invoiceService.findByTenantId(tenantId).stream().map(invoice -> {
+            InvoiceResponse response = DtoMapper.toResponse(invoice);
+            if (invoice.getAgreementId() != null) {
+                response.setUnitId(agreementService.findById(invoice.getAgreementId()).getUnitId());
+            }
+            return response;
+        }).toList();
     }
 
     @PostMapping

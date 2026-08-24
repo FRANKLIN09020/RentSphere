@@ -24,8 +24,6 @@ public class RentIncreaseRequest {
     private BigDecimal previousRent;
     @NotNull
     private BigDecimal proposedRent;
-    private BigDecimal increaseAmount;
-    private BigDecimal increasePercent;
     private LocalDate noticeDate;
     private LocalDate effectiveDate;
     private LocalDateTime notificationScheduledAt;

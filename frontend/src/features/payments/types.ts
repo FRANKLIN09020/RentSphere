@@ -21,6 +21,7 @@ export type RazorpayCreateOrderResponse = {
   amount: number
   currency: string
   keyId: string
+  paymentCompleted: boolean
 }
 
 export type RazorpayVerifyRequest = {

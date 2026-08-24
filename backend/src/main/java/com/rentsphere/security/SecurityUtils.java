@@ -46,4 +46,18 @@ public class SecurityUtils {
         return auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_" + role));
     }
+
+    public boolean isTenant() {
+        return hasRole("TENANT");
+    }
+
+    public boolean hasOrganizationScope() {
+        return getCurrentOrganizationId() != null;
+    }
+
+    public String cacheScopeKey() {
+        if (isAdmin()) return "ADMIN";
+        UUID organizationId = getCurrentOrganizationId();
+        return organizationId != null ? organizationId.toString() : "UNSCOPED";
+    }
 }

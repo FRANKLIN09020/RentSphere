@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { Box, Card, Grid, Stack, Typography } from '@mui/material'
+import { useMemo, useState } from 'react'
+import { Box, Button, Card, Grid, MenuItem, Stack, TablePagination, TextField, Typography } from '@mui/material'
 import { useAuth } from '../../shared/auth/useAuth'
 import { canCreateModule, canEditModule, canManageModule } from './moduleAccess'
 import type { ModuleConfig } from './types'
@@ -30,6 +30,18 @@ export function ModulePage({ config }: { config: ModuleConfig }) {
     organizationId: session?.organizationId,
   })
   const { query, setQuery, filteredRecords } = useModuleSearch(config, records)
+  const [filters, setFilters] = useState<Record<string, string>>({})
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(8)
+
+  const filterFields = useMemo(() => config.fields.filter((field) =>
+    field.kind === 'select' && records.some((record) => record[field.name] != null && record[field.name] !== ''),
+  ), [config.fields, records])
+  const refinedRecords = useMemo(() => filteredRecords.filter((record) =>
+    filterFields.every((field) => !filters[field.name]
+      || String(record[field.name] ?? '').toUpperCase() === filters[field.name].toUpperCase()),
+  ), [filteredRecords, filterFields, filters])
+  const pagedRecords = refinedRecords.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
 
   const visibleFields = useMemo(
     () => config.fields.filter((field) => {
@@ -98,22 +110,44 @@ export function ModulePage({ config }: { config: ModuleConfig }) {
               <Box sx={{ p: { xs: 2, md: 2.5 } }}>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { md: 'center' }, mb: 2 }}>
                   <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 800, fontSize: '1.05rem' }}>
-                      {profile.inventoryTitle}
-                    </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-                      {loading ? 'Loading records...' : `${filteredRecords.length} of ${records.length} ${profile.itemLabelPlural} shown`}
+                      {loading ? 'Loading records...' : `${refinedRecords.length} of ${records.length} ${profile.itemLabelPlural} shown`}
                     </Typography>
                   </Box>
                   <ModuleSearch
                     value={query}
-                    onChange={setQuery}
+                    onChange={(value) => { setQuery(value); setPage(0) }}
                     placeholder={profile.searchPlaceholder}
                   />
                 </Stack>
 
+                {filterFields.length > 0 && (
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} useFlexGap sx={{ mb: 2, flexWrap: 'wrap', alignItems: { sm: 'center' } }}>
+                    {filterFields.map((field) => {
+                      const values = Array.from(new Set(records.map((record) => String(record[field.name] ?? '')).filter(Boolean))).sort()
+                      return (
+                        <TextField
+                          key={field.name}
+                          select
+                          size="small"
+                          label={field.label}
+                          value={filters[field.name] ?? ''}
+                          onChange={(event) => { setFilters((current) => ({ ...current, [field.name]: event.target.value })); setPage(0) }}
+                          sx={{ minWidth: 160 }}
+                        >
+                          <MenuItem value="">All {field.label.toLowerCase()}</MenuItem>
+                          {values.map((value) => <MenuItem key={value} value={value}>{value.replace(/_/g, ' ')}</MenuItem>)}
+                        </TextField>
+                      )
+                    })}
+                    {Object.values(filters).some(Boolean) && (
+                      <Button size="small" onClick={() => { setFilters({}); setPage(0) }}>Clear filters</Button>
+                    )}
+                  </Stack>
+                )}
+
                 <Grid container spacing={2}>
-                  {filteredRecords.map((record, idx) => (
+                  {pagedRecords.map((record, idx) => (
                     <Grid key={String(record.id)} size={{ xs: 12, md: 6 }}>
                       <ModuleRecordCard
                         config={config}
@@ -128,7 +162,7 @@ export function ModulePage({ config }: { config: ModuleConfig }) {
                       />
                     </Grid>
                   ))}
-                  {!filteredRecords.length && (
+                  {!refinedRecords.length && (
                     <Grid size={{ xs: 12 }}>
                       <ModuleEmptyState
                         itemLabel={profile.itemLabel}
@@ -137,6 +171,18 @@ export function ModulePage({ config }: { config: ModuleConfig }) {
                     </Grid>
                   )}
                 </Grid>
+                {refinedRecords.length > 0 && (
+                  <TablePagination
+                    component="div"
+                    count={refinedRecords.length}
+                    page={page}
+                    rowsPerPage={rowsPerPage}
+                    rowsPerPageOptions={[4, 8, 12, 24]}
+                    onPageChange={(_, nextPage) => setPage(nextPage)}
+                    onRowsPerPageChange={(event) => { setRowsPerPage(Number(event.target.value)); setPage(0) }}
+                    sx={{ mt: 1, borderTop: 1, borderColor: 'divider' }}
+                  />
+                )}
               </Box>
             </Card>
           </Grid>

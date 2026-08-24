@@ -15,5 +15,7 @@ public interface AgreementRepository extends JpaRepository<Agreement, UUID> {
 
     List<Agreement> findByOrganizationId(UUID organizationId);
 
+    Page<Agreement> findByOrganizationIdOrderByCreatedAtDesc(UUID organizationId, Pageable pageable);
+
     List<Agreement> findByTenantId(UUID tenantId);
 }

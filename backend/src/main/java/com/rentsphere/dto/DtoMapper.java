@@ -371,8 +371,6 @@ public class DtoMapper {
                 .agreementId(entity.getAgreementId())
                 .previousRent(entity.getPreviousRent())
                 .proposedRent(entity.getProposedRent())
-                .increaseAmount(entity.getIncreaseAmount())
-                .increasePercent(entity.getIncreasePercent())
                 .noticeDate(entity.getNoticeDate())
                 .effectiveDate(entity.getEffectiveDate())
                 .notificationScheduledAt(entity.getNotificationScheduledAt())
@@ -395,8 +393,6 @@ public class DtoMapper {
                 .agreementId(request.getAgreementId())
                 .previousRent(request.getPreviousRent())
                 .proposedRent(request.getProposedRent())
-                .increaseAmount(request.getIncreaseAmount())
-                .increasePercent(request.getIncreasePercent())
                 .noticeDate(request.getNoticeDate())
                 .effectiveDate(request.getEffectiveDate())
                 .notificationScheduledAt(request.getNotificationScheduledAt())
@@ -416,8 +412,6 @@ public class DtoMapper {
         entity.setAgreementId(request.getAgreementId());
         entity.setPreviousRent(request.getPreviousRent());
         entity.setProposedRent(request.getProposedRent());
-        entity.setIncreaseAmount(request.getIncreaseAmount());
-        entity.setIncreasePercent(request.getIncreasePercent());
         entity.setNoticeDate(request.getNoticeDate());
         entity.setEffectiveDate(request.getEffectiveDate());
         entity.setNotificationScheduledAt(request.getNotificationScheduledAt());
@@ -438,6 +432,9 @@ public class DtoMapper {
                 .title(entity.getTitle())
                 .description(entity.getDescription())
                 .status(entity.getStatus())
+                .aiPriority(entity.getAiPriority())
+                .aiCategory(entity.getAiCategory())
+                .aiNote(entity.getAiNote())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

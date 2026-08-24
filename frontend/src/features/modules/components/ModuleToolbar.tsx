@@ -1,4 +1,4 @@
-import { Box, Button, LinearProgress, Stack, Typography } from '@mui/material'
+import { Box, Button, LinearProgress, Stack } from '@mui/material'
 import type { ModuleConfig } from '../types'
 import { AddIcon, RefreshIcon } from '../../../shared/ui/AppIcons'
 import { getModuleProfile, getCategoryAccent } from '../moduleProfile'
@@ -48,7 +48,7 @@ export function ModuleToolbar({
         border: '1px solid rgba(255,255,255,0.12)',
         color: 'white',
         borderRadius: '22px',
-        p: { xs: 2.5, md: 3.5 },
+        p: { xs: 1.5, md: 2 },
         overflow: 'hidden',
         position: 'relative',
         background: accent.gradient,
@@ -111,52 +111,7 @@ export function ModuleToolbar({
       <Box sx={{ position: 'absolute', inset: 'auto -80px -80px auto', width: 240, height: 240, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.08)', zIndex: -1, animation: 'orbBreathe 6s ease-in-out infinite', '@keyframes orbBreathe': { '0%,100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.1)' } } }} />
       <Box sx={{ position: 'absolute', inset: '-50px auto auto -50px', width: 170, height: 170, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.05)', zIndex: -1 }} />
 
-      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} sx={{ justifyContent: 'space-between', alignItems: { lg: 'center' }, position: 'relative' }}>
-        <Box>
-          <Stack direction="row" spacing={1.75} sx={{ alignItems: 'center', mb: 0.5 }}>
-            {/* Rotating ring icon */}
-            <Box sx={{ position: 'relative', width: 52, height: 52, flexShrink: 0, display: 'grid', placeItems: 'center' }}>
-              <Box
-                sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  borderRadius: '14px',
-                  padding: '2px',
-                  background: 'conic-gradient(from 0deg, rgba(255,255,255,0.95), rgba(255,255,255,0.15), rgba(255,255,255,0.05), rgba(255,255,255,0.95))',
-                  WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                  WebkitMaskComposite: 'xor',
-                  maskComposite: 'exclude',
-                  animation: 'ringSpin 5s linear infinite',
-                  '@keyframes ringSpin': { to: { transform: 'rotate(360deg)' } },
-                }}
-              />
-              <Box
-                sx={{
-                  position: 'absolute',
-                  inset: 3,
-                  borderRadius: '11px',
-                  bgcolor: 'rgba(255,255,255,0.14)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  animation: 'iconBob 3.5s ease-in-out infinite',
-                  '@keyframes iconBob': { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-3px)' } },
-                }}
-              >
-                {profile.icon}
-              </Box>
-            </Box>
-            <Box>
-              <Typography variant="overline" sx={{ fontWeight: 800, color: 'rgba(255,255,255,0.65)', letterSpacing: 1.5 }}>
-                {profile.eyebrow}
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, lineHeight: 1.15, textShadow: '0 2px 24px rgba(0,0,0,0.25)' }}>
-                {profile.title}
-              </Typography>
-            </Box>
-          </Stack>
-        </Box>
-
-        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', position: 'relative' }}>
           <Box
             sx={{
               display: 'inline-flex',
@@ -178,7 +133,7 @@ export function ModuleToolbar({
                 width: 7,
                 height: 7,
                 borderRadius: '50%',
-                bgcolor: error ? '#fca5a5' : '#5eead4',
+                bgcolor: error ? '#fca5a5' : 'var(--rs-primary-soft)',
                 boxShadow: `0 0 0 0 ${error ? 'rgba(252,165,165,0.6)' : 'rgba(94,234,212,0.6)'}`,
                 animation: 'pulseDot 1.9s ease-out infinite',
                 '@keyframes pulseDot': {
@@ -215,7 +170,7 @@ export function ModuleToolbar({
               onClick={onCreate}
               sx={{
                 bgcolor: '#ffffff',
-                color: '#0f766e',
+                color: 'var(--rs-primary-hover)',
                 borderRadius: '10px',
                 fontWeight: 700,
                 fontSize: '0.8rem',
@@ -230,7 +185,6 @@ export function ModuleToolbar({
               New {profile.itemLabel}
             </Button>
           )}
-        </Stack>
       </Stack>
 
       {loading && (

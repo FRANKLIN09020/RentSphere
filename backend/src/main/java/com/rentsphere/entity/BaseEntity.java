@@ -3,13 +3,9 @@ package com.rentsphere.entity;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.springframework.data.annotation.CreatedBy;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedBy;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
@@ -20,7 +16,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @MappedSuperclass
-@EntityListeners(AuditingEntityListener.class)
+@EntityListeners(AuditListener.class)
 @SQLRestriction("deleted = false")
 @Getter
 @Setter
@@ -30,18 +26,15 @@ public abstract class BaseEntity {
     @GeneratedValue
     private UUID id;
 
-    @CreatedDate
+    @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
-    @LastModifiedDate
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @CreatedBy
-    @Column(updatable = false)
     private UUID createdBy;
 
-    @LastModifiedBy
     private UUID updatedBy;
 
     private UUID deletedBy;

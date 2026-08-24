@@ -11,17 +11,12 @@ import {
   LinearProgress,
   MenuItem,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  TablePagination,
   TextField,
   Typography,
 } from '@mui/material'
 import { getErrorMessage, http } from '../../shared/api/http'
-import { ApartmentIcon, ImageIcon, LocationIcon, RefreshIcon, SaveIcon } from '../../shared/ui/AppIcons'
+import { ApartmentIcon, ImageIcon, LocationIcon, SaveIcon } from '../../shared/ui/AppIcons'
 import { formatMoney } from '../../shared/utils/format'
 import type { RecordData } from '../modules/types'
 import { parseBookingAssistantMessage } from './aiBookingAssistant'
@@ -32,16 +27,6 @@ type BookingForm = {
   visitDate: string
   visitTime: string
   note: string
-}
-
-type MyBooking = {
-  id: string
-  type?: string
-  subject: string
-  details?: string
-  status: 'PENDING' | 'APPROVED' | 'REJECTED'
-  decisionComment?: string
-  decidedAt?: string
 }
 
 const initialForm: BookingForm = {
@@ -64,34 +49,10 @@ export function TenantBookingPage() {
   const [assistantInput, setAssistantInput] = useState('')
   const [assistantStatus, setAssistantStatus] = useState('')
   const [assistantBusy, setAssistantBusy] = useState(false)
-  const [myBookings, setMyBookings] = useState<MyBooking[]>([])
-  const [bookingsLoading, setBookingsLoading] = useState(false)
-
-  const loadMyBookings = useCallback(async () => {
-    setBookingsLoading(true)
-    try {
-      const response = await http.get<MyBooking[]>('/approvals')
-      setMyBookings(response.data.filter((approval) => String(approval.type ?? '').toUpperCase() === 'APARTMENT_VISIT'))
-    } catch (err) {
-      setError(getErrorMessage(err))
-    } finally {
-      setBookingsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadMyBookings()
-    }, 0)
-    const interval = window.setInterval(() => {
-      void loadMyBookings()
-    }, 15000)
-    return () => {
-      window.clearTimeout(timer)
-      window.clearInterval(interval)
-    }
-  }, [loadMyBookings])
-
+  const [listingQuery, setListingQuery] = useState('')
+  const [cityFilter, setCityFilter] = useState('ALL')
+  const [listingPage, setListingPage] = useState(0)
+  const [listingsPerPage, setListingsPerPage] = useState(6)
   const loadListings = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -144,6 +105,15 @@ export function TenantBookingPage() {
       return String(building?.propertyId ?? '') === form.propertyId
     })
   }, [availableUnits, buildingById, form.propertyId])
+
+  const cities = useMemo(() => Array.from(new Set(properties.map((property) => String(property.city ?? '')).filter(Boolean))).sort(), [properties])
+  const filteredProperties = useMemo(() => properties.filter((property) => {
+    const query = listingQuery.trim().toLowerCase()
+    const matchesQuery = !query || [property.name, property.address, property.city, property.state, property.amenities]
+      .some((value) => String(value ?? '').toLowerCase().includes(query))
+    return matchesQuery && (cityFilter === 'ALL' || String(property.city) === cityFilter)
+  }), [properties, listingQuery, cityFilter])
+  const pagedProperties = filteredProperties.slice(listingPage * listingsPerPage, listingPage * listingsPerPage + listingsPerPage)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -221,14 +191,7 @@ export function TenantBookingPage() {
     <Box component="section" sx={{ p: { xs: 2, md: 3.5 }, maxWidth: 1480 }}>
       <Stack spacing={2.5}>
         <Box sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 1, p: { xs: 2, md: 3 } }}>
-          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} sx={{ justifyContent: 'space-between', alignItems: { lg: 'center' } }}>
-            <Box>
-              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 900 }}>Tenant booking</Typography>
-              <Typography variant="h4">Browse Apartments</Typography>
-              <Typography color="text.secondary">
-                Select an apartment, choose your visiting date and time, and send the request for approval.
-              </Typography>
-            </Box>
+          <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
             <Chip label={loading ? 'Loading listings' : `${availableUnits.length} available units`} color="success" variant="outlined" />
           </Stack>
           {loading && <LinearProgress sx={{ mt: 2 }} />}
@@ -236,54 +199,6 @@ export function TenantBookingPage() {
 
         {message && <Alert severity="success">{message}</Alert>}
         {error && <Alert severity="error">{error}</Alert>}
-
-        <Card sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
-          <CardContent>
-            <Stack spacing={1.5}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}>
-                <Box>
-                  <Typography variant="h6">My bookings</Typography>
-                  <Typography color="text.secondary">Track the status of the apartment visits you have requested.</Typography>
-                </Box>
-                <Button size="small" variant="outlined" startIcon={<RefreshIcon />} onClick={loadMyBookings} disabled={bookingsLoading}>
-                  Refresh
-                </Button>
-              </Stack>
-              {bookingsLoading && <LinearProgress />}
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Property</TableCell>
-                      <TableCell>Visit details</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Decision</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {myBookings.map((booking) => (
-                      <TableRow key={booking.id} hover>
-                        <TableCell sx={{ fontWeight: 700 }}>{booking.subject.replace(/^Apartment visit request - /, '')}</TableCell>
-                        <TableCell>{formatBookingDetails(booking.details)}</TableCell>
-                        <TableCell><BookingStatusChip status={booking.status} /></TableCell>
-                        <TableCell>
-                          {booking.status === 'PENDING' ? 'Waiting for review' : (booking.decisionComment || (booking.status === 'APPROVED' ? 'Approved' : 'Rejected'))}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {!myBookings.length && !bookingsLoading && (
-                      <TableRow>
-                        <TableCell colSpan={4}>
-                          <Typography color="text.secondary">You have not booked any apartment visits yet.</Typography>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Stack>
-          </CardContent>
-        </Card>
 
         <Card sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
           <CardContent>
@@ -312,8 +227,18 @@ export function TenantBookingPage() {
 
         <Grid container spacing={2} sx={{ alignItems: 'flex-start' }}>
           <Grid size={{ xs: 12, lg: 8 }}>
+            <Card sx={{ p: 2, mb: 2 }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <TextField size="small" label="Search properties" value={listingQuery} onChange={(event) => { setListingQuery(event.target.value); setListingPage(0) }} fullWidth />
+                <TextField select size="small" label="City" value={cityFilter} onChange={(event) => { setCityFilter(event.target.value); setListingPage(0) }} sx={{ minWidth: 180 }}>
+                  <MenuItem value="ALL">All cities</MenuItem>
+                  {cities.map((city) => <MenuItem key={city} value={city}>{city}</MenuItem>)}
+                </TextField>
+                {(listingQuery || cityFilter !== 'ALL') && <Button onClick={() => { setListingQuery(''); setCityFilter('ALL'); setListingPage(0) }}>Clear</Button>}
+              </Stack>
+            </Card>
             <Grid container spacing={2}>
-              {properties.map((property) => (
+              {pagedProperties.map((property) => (
                 <Grid key={String(property.id)} size={{ xs: 12, md: 6 }}>
                   <PropertyListingCard
                     property={property}
@@ -326,7 +251,7 @@ export function TenantBookingPage() {
                   />
                 </Grid>
               ))}
-              {!properties.length && !loading && (
+              {!filteredProperties.length && !loading && (
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 1, p: 4, textAlign: 'center' }}>
                     <Typography variant="h6">No properties available</Typography>
@@ -335,6 +260,7 @@ export function TenantBookingPage() {
                 </Grid>
               )}
             </Grid>
+            {filteredProperties.length > 0 && <TablePagination component="div" count={filteredProperties.length} page={listingPage} rowsPerPage={listingsPerPage} rowsPerPageOptions={[4, 6, 12, 24]} onPageChange={(_, page) => setListingPage(page)} onRowsPerPageChange={(event) => { setListingsPerPage(Number(event.target.value)); setListingPage(0) }} />}
           </Grid>
 
           <Grid size={{ xs: 12, lg: 4 }}>
@@ -425,8 +351,8 @@ function PropertyListingCard({
   const imageUrl = String(property.imageUrl ?? '')
 
   return (
-    <Card sx={{ height: '100%', overflow: 'hidden', boxShadow: selected ? '0 0 0 2px #0f766e' : undefined }}>
-      <Box sx={{ aspectRatio: '16 / 9', bgcolor: '#e2e8f0' }}>
+    <Card sx={{ height: '100%', overflow: 'hidden', boxShadow: selected ? (theme) => `0 0 0 2px ${theme.palette.primary.dark}` : undefined }}>
+      <Box sx={{ aspectRatio: '16 / 9', bgcolor: 'action.hover' }}>
         {imageUrl ? (
           <Box component="img" src={imageUrl} alt={String(property.name ?? 'Property')} sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         ) : (
@@ -462,20 +388,6 @@ function sanitizeDateValue(value: string) {
   if (!value) return ''
   const minDate = getMinDateString()
   return value < minDate ? minDate : value
-}
-
-function formatBookingDetails(details?: string) {
-  if (!details) return '-'
-  const lines = details
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line && /^(Visit date|Visit time|Note):/i.test(line))
-  return lines.length ? lines.map((line) => line.replace(/^([^:]+):/, '$1:')).join(' · ') : '-'
-}
-
-function BookingStatusChip({ status }: { status: MyBooking['status'] }) {
-  const color = status === 'APPROVED' ? 'success' : status === 'REJECTED' ? 'error' : 'warning'
-  return <Chip size="small" color={color} label={status} />
 }
 
 function getMinDateString() {

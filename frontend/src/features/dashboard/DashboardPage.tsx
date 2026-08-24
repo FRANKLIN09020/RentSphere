@@ -27,21 +27,24 @@ import {
 import type { RecordData } from '../modules/types'
 import { formatMoney } from '../../shared/utils/format'
 import { AnimatedNumber, AreaChart, BarChart, DonutChart, HorizontalBars, type ChartDatum } from './DashboardCharts'
+import { brandColors } from '../../app/theme'
 
 const rolePriorityModules = {
   ADMIN: ['properties', 'units', 'tenants', 'invoices', 'complaints'],
   OWNER: ['properties', 'units', 'tenants', 'invoices', 'complaints'],
-  TENANT: ['apartments', 'properties', 'units', 'complaints'],
+  TENANT: ['apartments', 'payments', 'complaints', 'deposit-disputes', 'rent-increases'],
 } as const
 
+const tenantOwnedResources = new Set(['payments', 'complaints', 'deposit-disputes', 'rent-increases'])
+
 const CHART_COLORS = {
-  teal: '#0d9488',
-  blue: '#2563eb',
-  green: '#15803d',
-  amber: '#b45309',
-  red: '#b91c1c',
-  slate: '#64748b',
-  violet: '#7c3aed',
+  teal: brandColors.primary,
+  blue: brandColors.info,
+  green: brandColors.success,
+  amber: brandColors.warning,
+  red: brandColors.error,
+  slate: brandColors.muted,
+  violet: brandColors.violet,
 } as const
 
 const monthKey = (value: unknown) => {
@@ -97,7 +100,10 @@ export function DashboardPage() {
     try {
       const results = await Promise.allSettled(
         relatedModules.map(async (module) => {
-          const response = await http.get<RecordData[]>(`/${module.resource}`)
+          const endpoint = session?.role === 'TENANT' && tenantOwnedResources.has(module.resource)
+            ? `/${module.resource}/me`
+            : `/${module.resource}`
+          const response = await http.get<RecordData[]>(endpoint)
           return [module.resource, response.data] as const
         }),
       )
@@ -111,7 +117,7 @@ export function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [relatedModules])
+  }, [relatedModules, session?.role])
 
   useEffect(() => {
     const initialTimer = window.setTimeout(() => {
@@ -130,6 +136,9 @@ export function DashboardPage() {
     const count = (resource: string) => moduleData[resource]?.length ?? 0
     const invoices = moduleData.invoices ?? []
     const complaints = moduleData.complaints ?? []
+    const payments = moduleData.payments ?? []
+    const depositDisputes = moduleData['deposit-disputes'] ?? []
+    const rentIncreases = moduleData['rent-increases'] ?? []
     const units = moduleData.units ?? []
     const paidInvoices = invoices.filter((invoice) => invoice.status === 'PAID').length
     const openComplaints = complaints.filter((complaint) => complaint.status !== 'RESOLVED').length
@@ -152,6 +161,9 @@ export function DashboardPage() {
       totalUnits: units.length,
       unitsOccupied: units.filter((unit) => unit.status === 'OCCUPIED').length,
       unitsMaintenance: units.filter((unit) => unit.status === 'MAINTENANCE').length,
+      payments: payments.length,
+      openDepositDisputes: depositDisputes.filter((dispute) => !['SETTLED', 'REJECTED'].includes(String(dispute.status))).length,
+      activeRentIncreases: rentIncreases.filter((increase) => !['ACCEPTED', 'CANCELLED'].includes(String(increase.status))).length,
     }
   }, [moduleData])
 
@@ -213,16 +225,16 @@ export function DashboardPage() {
 
   const statCards = session?.role === 'TENANT'
     ? [
-      { label: 'Properties', value: totals.properties, icon: <ApartmentIcon />, color: '#0d9488' },
-      { label: 'Available units', value: totals.availableUnits, icon: <UnitIcon />, color: '#2563eb' },
-      { label: 'Open complaints', value: totals.openComplaints, icon: <WarningIcon />, color: '#b45309' },
-      { label: 'Visible modules', value: readableModules.length, icon: <PeopleIcon />, color: '#7c3aed' },
+      { label: 'Payments', value: totals.payments, icon: <ApartmentIcon />, color: CHART_COLORS.teal },
+      { label: 'Open complaints', value: totals.openComplaints, icon: <WarningIcon />, color: CHART_COLORS.amber },
+      { label: 'Deposit cases', value: totals.openDepositDisputes, icon: <UnitIcon />, color: CHART_COLORS.blue },
+      { label: 'Rent notices', value: totals.activeRentIncreases, icon: <PeopleIcon />, color: CHART_COLORS.violet },
     ]
     : [
-      { label: 'Properties', value: totals.properties, icon: <ApartmentIcon />, color: '#0d9488' },
-      { label: 'Tenants', value: totals.tenants, icon: <PeopleIcon />, color: '#2563eb' },
-      { label: 'Available units', value: totals.availableUnits, icon: <UnitIcon />, color: '#15803d' },
-      { label: 'Open complaints', value: totals.openComplaints, icon: <WarningIcon />, color: '#b91c1c' },
+      { label: 'Properties', value: totals.properties, icon: <ApartmentIcon />, color: CHART_COLORS.teal },
+      { label: 'Tenants', value: totals.tenants, icon: <PeopleIcon />, color: CHART_COLORS.blue },
+      { label: 'Available units', value: totals.availableUnits, icon: <UnitIcon />, color: CHART_COLORS.green },
+      { label: 'Open complaints', value: totals.openComplaints, icon: <WarningIcon />, color: CHART_COLORS.red },
     ]
 
   const iconTile = (icon: ReactNode, color: string) => (
@@ -254,10 +266,10 @@ export function DashboardPage() {
           sx={{
             position: 'relative',
             overflow: 'hidden',
-            border: '1px solid rgba(13,148,136,0.18)',
+            border: '1px solid color-mix(in srgb, var(--rs-primary) 18%, transparent)',
             borderRadius: '18px',
             p: { xs: 2.5, md: 3.5 },
-            background: 'linear-gradient(120deg, #ffffff 0%, #f0fdfa 60%, #f3f6fa 100%)',
+            background: 'linear-gradient(120deg, #ffffff 0%, var(--rs-primary-surface) 60%, #f3f6fa 100%)',
             animation: 'bannerIn 0.7s cubic-bezier(.22,1,.36,1) both',
             '@keyframes bannerIn': {
               from: { opacity: 0, transform: 'translateY(-18px)' },
@@ -273,7 +285,7 @@ export function DashboardPage() {
               width: 240,
               height: 240,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(45,212,191,0.28), transparent 70%)',
+              background: 'radial-gradient(circle, color-mix(in srgb, var(--rs-primary-soft) 28%, transparent), transparent 70%)',
               animation: 'blobDrift 8s ease-in-out infinite',
               '@keyframes blobDrift': {
                 '0%, 100%': { transform: 'translate(0, 0) scale(1)' },
@@ -301,21 +313,12 @@ export function DashboardPage() {
               position: 'absolute',
               inset: '0 auto 0 0',
               width: 6,
-              background: 'linear-gradient(180deg, #0d9488, #5eead4)',
+              background: 'linear-gradient(180deg, var(--rs-primary), var(--rs-primary-soft))',
               animation: 'accentPulse 2.5s ease-in-out infinite',
               '@keyframes accentPulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0.5 } },
             }}
           />
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ justifyContent: 'space-between', alignItems: { md: 'center' }, pl: 1, position: 'relative' }}>
-            <Box sx={{ animation: 'titleUp 0.8s cubic-bezier(.22,1,.36,1) 0.1s both', '@keyframes titleUp': { from: { opacity: 0, transform: 'translateY(14px)' }, to: { opacity: 1, transform: 'none' } } }}>
-              <Typography variant="overline" sx={{ fontWeight: 900, color: 'primary.main' }}>
-                {formatRole(session?.role)} Overview
-              </Typography>
-              <Typography variant="h4">Analytics Dashboard</Typography>
-              <Typography color="text.secondary" sx={{ maxWidth: 560 }}>
-                Live visual metrics across your rental portfolio, refreshed automatically.
-              </Typography>
-            </Box>
+          <Stack direction="row" sx={{ justifyContent: 'flex-end', alignItems: 'center', position: 'relative' }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <Chip
                 label={updatedAt ? `Updated ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Preparing data'}
@@ -323,8 +326,8 @@ export function DashboardPage() {
                 sx={{
                   fontWeight: 800,
                   bgcolor: error ? undefined : 'rgba(255,255,255,0.92)',
-                  color: error ? undefined : '#0d9488',
-                  border: error ? undefined : '1px solid rgba(13,148,136,0.35)',
+                  color: error ? undefined : 'var(--rs-primary)',
+                  border: error ? undefined : '1px solid color-mix(in srgb, var(--rs-primary) 35%, transparent)',
                   animation: 'bannerIn 0.6s ease 0.25s both',
                 }}
               />
@@ -345,7 +348,7 @@ export function DashboardPage() {
                 mt: 2.5,
                 borderRadius: 2,
                 '& .MuiLinearProgress-bar': {
-                  background: 'linear-gradient(90deg, #0d9488, #5eead4)',
+                  background: 'linear-gradient(90deg, var(--rs-primary), var(--rs-primary-soft))',
                   backgroundSize: '200% 100%',
                   animation: 'progressFlow 1.4s linear infinite',
                   '@keyframes progressFlow': { '0%': { backgroundPosition: '0% 50%' }, '100%': { backgroundPosition: '200% 50%' } },
@@ -449,7 +452,7 @@ export function DashboardPage() {
           {/* Occupancy donut */}
           <Grid size={{ xs: 12, md: 6, lg: 4 }} sx={{ ...cardEnter(0.55) }}>
             <Card sx={{ overflow: 'hidden', height: '100%' }}>
-              <Box sx={{ height: 4, bgcolor: '#2563eb', ...accentBarShimmer }} />
+              <Box sx={{ height: 4, bgcolor: 'var(--rs-info)', ...accentBarShimmer }} />
               <CardContent>
                 <Stack spacing={2}>
                   <Box>
@@ -485,7 +488,7 @@ export function DashboardPage() {
           {/* Module records bar chart */}
           <Grid size={{ xs: 12, md: 6, lg: 4 }} sx={{ ...cardEnter(0.65) }}>
             <Card sx={{ overflow: 'hidden', height: '100%' }}>
-              <Box sx={{ height: 4, bgcolor: '#7c3aed', ...accentBarShimmer }} />
+              <Box sx={{ height: 4, bgcolor: 'var(--rs-violet)', ...accentBarShimmer }} />
               <CardContent>
                 <Stack spacing={1}>
                   <Box>
@@ -538,7 +541,7 @@ export function DashboardPage() {
           {/* Complaints horizontal bars */}
           <Grid size={{ xs: 12, md: 6, lg: 4 }} sx={{ ...cardEnter(0.85) }}>
             <Card sx={{ overflow: 'hidden', height: '100%' }}>
-              <Box sx={{ height: 4, bgcolor: '#b45309', ...accentBarShimmer }} />
+              <Box sx={{ height: 4, bgcolor: 'var(--rs-warning)', ...accentBarShimmer }} />
               <CardContent>
                 <Stack spacing={2}>
                   <Box>
@@ -583,13 +586,4 @@ export function DashboardPage() {
       </Stack>
     </Box>
   )
-}
-
-function formatRole(role?: string) {
-  if (!role) return 'Workspace'
-  return role
-    .toLowerCase()
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
 }

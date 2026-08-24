@@ -1,8 +1,23 @@
 import axios from 'axios'
 import { tokenStorage } from '../auth/tokenStorage'
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+function resolveApiBaseUrl() {
+  const configuredUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+  if (!configuredUrl) {
+    return window.location.protocol === 'https:' ? '/api' : 'http://localhost:8080'
+  }
+
+  if (window.location.protocol === 'https:' && configuredUrl.startsWith('http://')) {
+    const target = new URL(configuredUrl)
+    if (['localhost', '127.0.0.1'].includes(target.hostname)) return '/api'
+    target.protocol = 'https:'
+    return target.toString().replace(/\/$/, '')
+  }
+
+  return configuredUrl.replace(/\/$/, '')
+}
+
+export const API_BASE_URL = resolveApiBaseUrl()
 
 export const UNAUTHORIZED_EVENT = 'rentsphere:unauthorized'
 

@@ -20,6 +20,9 @@ public class ComplaintResponse {
     private String title;
     private String description;
     private ComplaintStatus status;
+    private String aiPriority;
+    private String aiCategory;
+    private String aiNote;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

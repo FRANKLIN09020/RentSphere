@@ -190,7 +190,7 @@ class RazorpayPaymentIntegrationTests {
                         .header("X-Razorpay-Signature", signature))
                 .andExpect(status().isOk());
 
-        Payment saved = paymentRepository.findByRazorpayOrderId(orderId).orElseThrow();
+        Payment saved = paymentRepository.findFirstByRazorpayOrderIdOrderByCreatedAtDesc(orderId).orElseThrow();
         assertEquals(PaymentStatus.SUCCESS, saved.getStatus());
         assertEquals(paymentId, saved.getRazorpayPaymentId());
 

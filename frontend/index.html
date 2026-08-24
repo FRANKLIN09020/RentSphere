@@ -1,12 +1,23 @@
 <!doctype html>
-<html lang="en" data-overlayscrollbars-initialize>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      (() => {
+        const saved = localStorage.getItem('rentsphere-color-mode') || 'system';
+        const mode = saved === 'system'
+          ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : saved;
+        document.documentElement.dataset.colorScheme = mode;
+        document.documentElement.style.colorScheme = mode;
+      })();
+    </script>
     <title>RentSphere – Smart Property and Rental Management System</title>
   </head>
-  <body data-overlayscrollbars-initialize>
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

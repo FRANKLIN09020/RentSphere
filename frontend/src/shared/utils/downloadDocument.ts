@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf'
 import type { ModuleConfig, RecordData } from '../../features/modules/types'
 import { getReferenceLabel } from '../../features/modules/referenceUtils'
 import { formatMoney } from './format'
+import { brandColors } from '../../app/theme'
 
 type ReferenceData = Record<string, RecordData[]>
 
@@ -9,14 +10,14 @@ const PAGE_WIDTH = 595.28
 const PAGE_HEIGHT = 841.89
 const MARGIN = 46
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2
-const TEAL = '#0d9488'
-const DARK = '#0b1220'
-const GRAY = '#64748b'
-const LIGHT = '#f0fdfa'
-const BORDER = '#d9e2ec'
-const SUCCESS = '#15803d'
-const AMBER = '#b45309'
-const ERROR = '#b91c1c'
+const TEAL = brandColors.primary
+const DARK = brandColors.navigation
+const GRAY = brandColors.muted
+const LIGHT = brandColors.primarySurface
+const BORDER = brandColors.border
+const SUCCESS = brandColors.success
+const AMBER = brandColors.warning
+const ERROR = brandColors.error
 
 function resolveLabel(fieldName: string, record: RecordData, references: ReferenceData) {
   const value = record[fieldName]
@@ -30,6 +31,20 @@ function formatDate(value: unknown) {
   const date = new Date(String(value ?? ''))
   if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function shortReference(prefix: string, value: unknown) {
+  const compact = String(value ?? '-').replace(/-/g, '').toUpperCase()
+  return `${prefix}-${compact.slice(0, 10)}`
+}
+
+function formatPdfMoney(value: unknown) {
+  const amount = Number(value ?? 0)
+  if (!Number.isFinite(amount)) return 'INR 0.00'
+  return `INR ${new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)}`
 }
 
 function statusColor(status: string) {
@@ -66,9 +81,9 @@ export function downloadFinancialRecord(
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
 
   // Header band
-  doc.setFillColor('#0f766e')
+  doc.setFillColor(brandColors.primaryHover)
   doc.rect(0, 0, PAGE_WIDTH, 118, 'F')
-  doc.setFillColor('#14b8a6')
+  doc.setFillColor(brandColors.accent)
   doc.rect(0, 118, PAGE_WIDTH, 4, 'F')
 
   doc.setTextColor('#ffffff')
@@ -172,4 +187,148 @@ export function downloadFinancialRecord(
   )
 
   doc.save(`${isInvoice ? 'invoice' : 'payment'}-${id}.pdf`)
+}
+
+export function downloadTenantPaidInvoice({
+  invoice,
+  payment,
+  tenantName,
+  propertyName,
+  propertyAddress,
+  unitNumber,
+}: {
+  invoice: RecordData
+  payment: RecordData
+  tenantName: string
+  propertyName: string
+  propertyAddress?: string
+  unitNumber?: string
+}) {
+  const invoiceId = String(invoice.id ?? payment.invoiceId ?? '-')
+  const paymentId = String(payment.id ?? '-')
+  const amount = Number(payment.amount ?? invoice.amount ?? 0)
+  const paidAt = payment.paymentDate ?? payment.updatedAt ?? payment.createdAt
+  const safeTenantName = tenantName.trim() || 'Tenant'
+  const safePropertyName = propertyName.trim() || 'RentSphere Property'
+  const invoiceNumber = shortReference('INV', invoiceId)
+  const paymentReference = shortReference('PAY', payment.razorpayPaymentId ?? paymentId)
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+
+  // A light property identity watermark that stays behind all invoice content.
+  doc.setTextColor('#e6eef0')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(38)
+  doc.text(safePropertyName.toUpperCase(), PAGE_WIDTH / 2, PAGE_HEIGHT / 2 + 45, {
+    align: 'center',
+    angle: 32,
+    maxWidth: 470,
+  })
+
+  doc.setFillColor(brandColors.primaryHover)
+  doc.rect(0, 0, PAGE_WIDTH, 124, 'F')
+  doc.setFillColor(brandColors.accent)
+  doc.rect(0, 124, PAGE_WIDTH, 5, 'F')
+
+  doc.setTextColor('#ffffff')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(23)
+  doc.text('RentSphere', MARGIN, 44)
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor('#ccfbf1')
+  doc.text(safePropertyName, MARGIN, 64)
+  if (propertyAddress) doc.text(propertyAddress, MARGIN, 80, { maxWidth: 280 })
+
+  doc.setTextColor('#ffffff')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(22)
+  doc.text('PAYMENT RECEIPT', PAGE_WIDTH - MARGIN, 44, { align: 'right' })
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor('#ccfbf1')
+  doc.text(invoiceNumber, PAGE_WIDTH - MARGIN, 64, { align: 'right' })
+  doc.setFontSize(8)
+  doc.text('Status: PAID', PAGE_WIDTH - MARGIN, 80, { align: 'right' })
+
+  let y = 168
+  doc.setTextColor(DARK)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(18)
+  doc.text(safeTenantName, MARGIN, y)
+  doc.setTextColor(GRAY)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.text('BILLED TO', MARGIN, y - 22)
+  doc.text(unitNumber ? `Unit ${unitNumber}  |  ${safePropertyName}` : safePropertyName, MARGIN, y + 18)
+
+  const paidLabel = 'PAID'
+  const badgeWidth = 66
+  doc.setFillColor(SUCCESS)
+  doc.roundedRect(PAGE_WIDTH - MARGIN - badgeWidth, y - 27, badgeWidth, 27, 6, 6, 'F')
+  doc.setTextColor('#ffffff')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.text(paidLabel, PAGE_WIDTH - MARGIN - badgeWidth / 2, y - 9, { align: 'center' })
+
+  y += 58
+  const rows: Array<[string, string]> = [
+    ['Invoice number', invoiceNumber],
+    ['Payment reference', paymentReference],
+    ['Property', safePropertyName],
+    ['Unit', unitNumber || '-'],
+    ['Invoice issued', formatDate(invoice.createdAt)],
+    ['Due date', formatDate(invoice.dueDate)],
+    ['Paid on', formatDate(paidAt)],
+    ['Payment method', payment.razorpayPaymentId
+      ? 'Razorpay online payment'
+      : payment.recordedFromInvoice
+        ? 'Recorded by property management'
+        : 'Online payment'],
+  ]
+
+  doc.setDrawColor(BORDER)
+  doc.setLineWidth(0.6)
+  rows.forEach(([label, value], index) => {
+    const rowY = y + index * 32
+    doc.setFillColor(index % 2 === 0 ? LIGHT : '#ffffff')
+    doc.roundedRect(MARGIN, rowY, CONTENT_WIDTH, 28, 4, 4, 'F')
+    doc.setTextColor(GRAY)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.text(label.toUpperCase(), MARGIN + 14, rowY + 18)
+    doc.setTextColor(DARK)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10.5)
+    doc.text(String(value), PAGE_WIDTH - MARGIN - 14, rowY + 18, { align: 'right', maxWidth: 280 })
+  })
+
+  const totalY = y + rows.length * 32 + 22
+  doc.setFillColor(brandColors.primaryHover)
+  doc.roundedRect(MARGIN, totalY, CONTENT_WIDTH, 78, 9, 9, 'F')
+  doc.setTextColor('#ffffff')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.text('TOTAL PAID', MARGIN + 18, totalY + 28)
+  doc.setTextColor('#ffffff')
+  doc.setFontSize(22)
+  doc.text(formatPdfMoney(amount), PAGE_WIDTH - MARGIN - 18, totalY + 34, { align: 'right' })
+  doc.setTextColor('#ccfbf1')
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.text('Balance due  INR 0.00', MARGIN + 18, totalY + 54)
+
+  doc.setTextColor(GRAY)
+  doc.setFontSize(8)
+  doc.text(`Full invoice ID: ${invoiceId}`, MARGIN, totalY + 104)
+  doc.text(`Internal payment ID: ${paymentId}`, MARGIN, totalY + 118)
+
+  doc.setDrawColor(BORDER)
+  doc.line(MARGIN, PAGE_HEIGHT - 82, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 82)
+  doc.setTextColor(GRAY)
+  doc.setFontSize(8)
+  doc.text(`Generated ${new Date().toLocaleString('en-IN')} | RentSphere`, MARGIN, PAGE_HEIGHT - 58)
+  doc.text('Computer-generated receipt; no signature is required.', PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 58, { align: 'right' })
+
+  const fileTenant = safeTenantName.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'tenant'
+  doc.save(`invoice-${fileTenant}-${invoiceId}.pdf`)
 }

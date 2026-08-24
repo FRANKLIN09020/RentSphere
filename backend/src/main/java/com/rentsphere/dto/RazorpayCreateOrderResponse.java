@@ -14,4 +14,5 @@ public class RazorpayCreateOrderResponse {
     private Long amount;
     private String currency;
     private String keyId;
+    private boolean paymentCompleted;
 }

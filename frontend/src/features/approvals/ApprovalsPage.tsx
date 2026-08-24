@@ -16,6 +16,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   TextField,
   Typography,
 } from '@mui/material'
@@ -67,6 +68,9 @@ export function ApprovalsPage() {
   const [createForm, setCreateForm] = useState<CreateForm>(initialCreateForm)
   const [createMessage, setCreateMessage] = useState('')
   const [creating, setCreating] = useState(false)
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
+  const pagedApprovals = approvals.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
 
   const loadApprovals = useCallback(async () => {
     setLoading(true)
@@ -130,16 +134,7 @@ export function ApprovalsPage() {
 
   return (
     <Box component="section" sx={{ p: { xs: 2.5, md: 3.5 }, maxWidth: 1440 }}>
-      <Stack spacing={0.75} sx={{ mb: 2.5 }}>
-        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 900 }}>Approvals</Typography>
-        <Typography variant="h4">{isTenant ? 'Approval status' : 'Approval workflow'}</Typography>
-        <Typography color="text.secondary">
-          {isTenant
-            ? 'View the status of your approval requests. You can see whether each request has been approved or rejected.'
-            : 'Create requests, notify approvers, and approve or reject with comments.'}
-        </Typography>
-        {error && <Alert severity="error">{error}</Alert>}
-      </Stack>
+      {error && <Alert severity="error" sx={{ mb: 2.5 }}>{error}</Alert>}
 
       <Grid container spacing={2}>
           {!isTenant && (
@@ -232,7 +227,7 @@ export function ApprovalsPage() {
                     <Typography color="text.secondary">{loading ? 'Loading...' : `${approvals.length} loaded`}</Typography>
                   </Box>
                   <Stack direction="row" spacing={1}>
-                    <TextField select label="Status" value={status} sx={{ minWidth: 150 }} onChange={(event) => setStatus(event.target.value)}>
+                    <TextField select label="Status" value={status} sx={{ minWidth: 150 }} onChange={(event) => { setStatus(event.target.value); setPage(0) }}>
                       <MenuItem value="">All</MenuItem>
                       <MenuItem value="PENDING">Pending</MenuItem>
                       <MenuItem value="APPROVED">Approved</MenuItem>
@@ -254,7 +249,7 @@ export function ApprovalsPage() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {approvals.map((approval) => (
+                      {pagedApprovals.map((approval) => (
                         <TableRow key={approval.id} hover>
                           <TableCell>{approval.subject}</TableCell>
                           <TableCell>{approval.type}</TableCell>
@@ -302,6 +297,7 @@ export function ApprovalsPage() {
                     </TableBody>
                   </Table>
                 </TableContainer>
+                {approvals.length > 0 && <TablePagination component="div" count={approvals.length} page={page} rowsPerPage={rowsPerPage} rowsPerPageOptions={[5, 10, 20, 50]} onPageChange={(_, nextPage) => setPage(nextPage)} onRowsPerPageChange={(event) => { setRowsPerPage(Number(event.target.value)); setPage(0) }} />}
               </Stack>
             </CardContent>
           </Card>

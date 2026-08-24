@@ -9,6 +9,7 @@ import type {
   RazorpayCreateOrderResponse,
   RazorpayVerifyRequest,
 } from './types'
+import { brandColors } from '../../app/theme'
 
 type ToastState = { severity: 'success' | 'error'; message: string } | null
 
@@ -53,6 +54,13 @@ export function PayNowButton({
         orderRequest,
       )
 
+      if (order.paymentCompleted) {
+        setToast({ severity: 'success', message: 'Payment confirmed. The paid invoice is now synchronized.' })
+        onPaid?.()
+        setBusy(false)
+        return
+      }
+
       const Razorpay = await loadRazorpayCheckout()
 
       const options: RazorpayCheckoutOptions = {
@@ -62,8 +70,9 @@ export function PayNowButton({
         name: 'RentSphere',
         description: `Invoice ${invoiceId.slice(0, 8)}`,
         order_id: order.orderId,
+        remember_customer: false,
         prefill: { email: session?.email ?? '' },
-        theme: { color: '#0d9488' },
+        theme: { color: brandColors.primary },
         handler: verifyPayment,
         modal: { ondismiss: () => setBusy(false) },
         retry: { enabled: true, max_count: 3 },

@@ -25,6 +25,7 @@ export type RazorpayCheckoutOptions = {
   name: string
   description?: string
   order_id: string
+  remember_customer?: boolean
   prefill?: { name?: string; email?: string; contact?: string }
   theme?: { color: string }
   handler: (response: RazorpayPaymentResponse) => void

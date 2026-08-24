@@ -10,6 +10,11 @@ app:
     key-id: rzp_test_integrationKeyId
     key-secret: test-razorpay-secret-key-at-least-20-chars
     webhook-secret: test-razorpay-webhook-secret
+  ai:
+    groq:
+      # Keep tests deterministic and offline: force the heuristic fallbacks.
+      api-key: ""
+      model: test-model
 
 spring:
   datasource:

@@ -16,11 +16,11 @@ public class AuditListener {
         UUID userId = getCurrentUserId();
         if (userId == null) return;
 
-        if (entity instanceof BaseAuditable auditable) {
-            if (auditable.getCreatedBy() == null) {
-                auditable.setCreatedBy(userId);
+        if (entity instanceof BaseEntity baseEntity) {
+            if (baseEntity.getCreatedBy() == null) {
+                baseEntity.setCreatedBy(userId);
             }
-            auditable.setUpdatedBy(userId);
+            baseEntity.setUpdatedBy(userId);
         }
     }
 
@@ -29,8 +29,8 @@ public class AuditListener {
         UUID userId = getCurrentUserId();
         if (userId == null) return;
 
-        if (entity instanceof BaseAuditable auditable) {
-            auditable.setUpdatedBy(userId);
+        if (entity instanceof BaseEntity baseEntity) {
+            baseEntity.setUpdatedBy(userId);
         }
     }
 
@@ -47,12 +47,5 @@ public class AuditListener {
             return UUID.nameUUIDFromBytes(username.getBytes());
         }
         return null;
-    }
-
-    public interface BaseAuditable {
-        UUID getCreatedBy();
-        void setCreatedBy(UUID createdBy);
-        UUID getUpdatedBy();
-        void setUpdatedBy(UUID updatedBy);
     }
 }

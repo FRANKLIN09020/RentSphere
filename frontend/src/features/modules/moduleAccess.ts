@@ -1,11 +1,17 @@
 import type { UserRole } from '../../shared/auth/types'
 import type { ModuleConfig } from './types'
 
-// Management tier - ADMIN and OWNER share identical, full access to every module.
-const managementModules = new Set(['organizations', 'users', 'properties', 'buildings', 'units', 'tenants', 'agreements', 'invoices', 'payments', 'complaints', 'deposit-disputes', 'rent-increases', 'applications-approvals'])
+const adminModules = new Set(['organizations', 'users', 'properties', 'buildings', 'units', 'tenants', 'agreements', 'invoices', 'payments', 'complaints', 'deposit-disputes', 'rent-increases', 'applications-approvals'])
 
-// Tenant modules - own record, browsing, and self-service workflows
-const tenantModules = new Set(['properties', 'units', 'complaints', 'deposit-disputes', 'rent-increases', 'invoices', 'payments', 'applications-approvals'])
+// Owners operate rental records inside their organization. Platform identity and
+// organization administration are reserved for administrators.
+const ownerModules = new Set(['properties', 'buildings', 'units', 'tenants', 'agreements', 'invoices', 'complaints', 'deposit-disputes', 'rent-increases', 'applications-approvals'])
+
+// Keep the tenant workspace focused on frequent self-service tasks. Apartment
+// discovery owns property/unit browsing, payments owns invoices, and approval
+// status owns request tracking. Disputes and rent administration remain staff
+// workflows instead of exposing management-style modules to tenants.
+const tenantModules = new Set(['payments', 'complaints'])
 
 const moduleOrder = [
   'organizations',
@@ -23,13 +29,10 @@ const moduleOrder = [
   'applications-approvals',
 ]
 
-function isManager(role: UserRole | undefined) {
-  return role === 'ADMIN' || role === 'OWNER'
-}
-
 export function canReadModule(role: UserRole | undefined, resource: string) {
   if (!role) return false
-  if (isManager(role)) return managementModules.has(resource)
+  if (role === 'ADMIN') return adminModules.has(resource)
+  if (role === 'OWNER') return ownerModules.has(resource)
   if (role === 'TENANT') return tenantModules.has(resource)
   return false
 }
@@ -38,21 +41,23 @@ export function canCreateModule(role: UserRole | undefined, resource: string) {
   if (!role) return false
   // Payments are created only by the verified Razorpay checkout flow.
   if (resource === 'payments') return false
-  if (isManager(role)) return managementModules.has(resource)
-  if (role === 'TENANT') return ['complaints', 'deposit-disputes'].includes(resource)
+  if (role === 'ADMIN') return adminModules.has(resource)
+  if (role === 'OWNER') return ownerModules.has(resource)
+  if (role === 'TENANT') return resource === 'complaints'
   return false
 }
 
 export function canManageModule(role: UserRole | undefined, resource: string) {
   if (!role) return false
-  // Payment ledger entries are immutable from the UI.
-  if (resource === 'payments') return false
-  if (isManager(role)) return managementModules.has(resource)
+  // Owners cannot alter the payment ledger, but administrators retain cleanup access.
+  if (resource === 'payments') return role === 'ADMIN'
+  if (role === 'ADMIN') return adminModules.has(resource)
+  if (role === 'OWNER') return ownerModules.has(resource)
   return false
 }
 
 export function canEditModule(role: UserRole | undefined, resource: string) {
-  return canManageModule(role, resource) || (role === 'TENANT' && resource === 'rent-increases')
+  return canManageModule(role, resource)
 }
 
 export function visibleModules(role: UserRole | undefined, modules: ModuleConfig[]) {

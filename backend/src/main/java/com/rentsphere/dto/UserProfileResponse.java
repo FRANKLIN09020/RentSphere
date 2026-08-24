@@ -12,5 +12,6 @@ public record UserProfileResponse(
         String phone,
         UserRole role,
         UUID organizationId,
+        String organizationName,
         LocalDateTime createdAt) {
 }

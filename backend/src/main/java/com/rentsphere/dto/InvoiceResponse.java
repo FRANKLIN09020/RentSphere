@@ -19,6 +19,7 @@ public class InvoiceResponse {
     private UUID organizationId;
     private UUID tenantId;
     private UUID agreementId;
+    private UUID unitId;
     private BigDecimal amount;
     private LocalDate dueDate;
     private InvoiceStatus status;

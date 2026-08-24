@@ -5,38 +5,25 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.SQLRestriction;
-import jakarta.persistence.EntityListeners;
 
 @Entity
+@org.hibernate.annotations.SQLRestriction("deleted = false")
 @Table(name = "rent_increases")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EntityListeners(AuditListener.class)
-@SQLRestriction("deleted = false")
-public class RentIncrease implements AuditListener.BaseAuditable {
-
-    @Id
-    @GeneratedValue
-    private UUID id;
+public class RentIncrease extends BaseEntity {
 
     private UUID organizationId;
 
@@ -49,10 +36,6 @@ public class RentIncrease implements AuditListener.BaseAuditable {
     private BigDecimal previousRent;
 
     private BigDecimal proposedRent;
-
-    private BigDecimal increaseAmount;
-
-    private BigDecimal increasePercent;
 
     private LocalDate noticeDate;
 
@@ -70,22 +53,4 @@ public class RentIncrease implements AuditListener.BaseAuditable {
 
     @Enumerated(EnumType.STRING)
     private RentIncreaseStatus status;
-
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
-
-    @Column(updatable = false)
-    private UUID createdBy;
-
-    private UUID updatedBy;
-
-    private UUID deletedBy;
-
-    private LocalDateTime deletedAt;
-
-    @Column(nullable = false)
-    private boolean deleted = false;
 }
