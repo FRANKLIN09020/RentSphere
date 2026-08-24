@@ -48,8 +48,8 @@ function formatPdfMoney(value: unknown) {
 }
 
 function statusColor(status: string) {
-  if (['PAID', 'SUCCESS', 'RESOLVED'].includes(status)) return SUCCESS
-  if (['OVERDUE', 'FAILED'].includes(status)) return ERROR
+  if (['PAID', 'SUCCESS', 'RESOLVED', 'SETTLED', 'ACCEPTED', 'APPROVED'].includes(status)) return SUCCESS
+  if (['OVERDUE', 'FAILED', 'REJECTED', 'DISPUTED'].includes(status)) return ERROR
   return AMBER
 }
 
@@ -192,15 +192,19 @@ export function downloadFinancialRecord(
 export function downloadDepositDisputeRecord(record: RecordData, references: ReferenceData) {
   const id = String(record.id ?? '-')
   const status = String(record.status ?? 'OPEN')
+  const displayStatus = status.replace(/_/g, ' ')
   const tenantName = resolveLabel('tenantId', record, references)
+  const rawUnit = resolveLabel('unitId', record, references)
+  const unitName = rawUnit.includes('|') ? rawUnit.split('|')[0].trim() : rawUnit
+  const agreement = references.agreements?.find((item) => String(item.id) === String(record.agreementId))
+  const agreementReference = agreement
+    ? `${formatDate(agreement.startDate)} to ${formatDate(agreement.endDate)}`
+    : record.agreementId ? shortReference('AGR', record.agreementId) : 'Not linked'
+  const depositAmount = Number(record.depositAmount ?? 0)
+  const deductedAmount = Number(record.deductedAmount ?? 0)
+  const refundableBalance = Math.max(0, depositAmount - deductedAmount)
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   const rows: Array<[string, string]> = [
-    ['Tenant', tenantName],
-    ['Unit', resolveLabel('unitId', record, references)],
-    ['Agreement', resolveLabel('agreementId', record, references)],
-    ['Deposit amount', formatPdfMoney(record.depositAmount)],
-    ['Deducted amount', formatPdfMoney(record.deductedAmount)],
-    ['Proposed settlement', formatPdfMoney(record.proposedSettlementAmount)],
     ['Deduction reason', String(record.deductionReason ?? '-')],
     ['Owner response', String(record.ownerResponse ?? '-')],
     ['Tenant notes', String(record.tenantNotes ?? '-')],
@@ -221,21 +225,62 @@ export function downloadDepositDisputeRecord(record: RecordData, references: Ref
   doc.setFontSize(9)
   doc.setTextColor('#ccfbf1')
   doc.text(shortReference('DSP', id), PAGE_WIDTH - MARGIN, 69, { align: 'right' })
-  doc.text('Official tenant copy', MARGIN, 69)
+  doc.text('Official settlement statement', MARGIN, 69)
 
   let y = 165
   doc.setTextColor(DARK)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(17)
   doc.text(tenantName, MARGIN, y)
-  const badgeWidth = Math.max(72, doc.getTextWidth(status) + 24)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9.5)
+  doc.setTextColor(GRAY)
+  doc.text(`${unitName}  |  Agreement ${agreementReference}`, MARGIN, y + 18)
+  const badgeWidth = Math.max(90, doc.getTextWidth(displayStatus) + 28)
   doc.setFillColor(statusColor(status))
   doc.roundedRect(PAGE_WIDTH - MARGIN - badgeWidth, y - 22, badgeWidth, 27, 6, 6, 'F')
   doc.setTextColor('#ffffff')
+  doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
-  doc.text(status, PAGE_WIDTH - MARGIN - badgeWidth / 2, y - 5, { align: 'center' })
+  doc.text(displayStatus, PAGE_WIDTH - MARGIN - badgeWidth / 2, y - 5, { align: 'center' })
 
-  y += 42
+  y += 50
+  const summaryGap = 8
+  const summaryWidth = (CONTENT_WIDTH - summaryGap * 2) / 3
+  const summaries: Array<[string, string, string]> = [
+    ['DEPOSIT HELD', formatPdfMoney(depositAmount), DARK],
+    ['DEDUCTION', formatPdfMoney(deductedAmount), ERROR],
+    ['REFUND BALANCE', formatPdfMoney(refundableBalance), SUCCESS],
+  ]
+  summaries.forEach(([label, value, color], index) => {
+    const x = MARGIN + index * (summaryWidth + summaryGap)
+    doc.setFillColor(index === 2 ? '#f0fdf4' : LIGHT)
+    doc.roundedRect(x, y, summaryWidth, 64, 7, 7, 'F')
+    doc.setTextColor(GRAY)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.text(label, x + 11, y + 19)
+    doc.setTextColor(color)
+    doc.setFontSize(13)
+    doc.text(value, x + 11, y + 43, { maxWidth: summaryWidth - 20 })
+  })
+  y += 82
+  if (record.proposedSettlementAmount != null) {
+    doc.setTextColor(DARK)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.text('PROPOSED SETTLEMENT', MARGIN, y)
+    doc.setTextColor(TEAL)
+    doc.setFontSize(15)
+    doc.text(formatPdfMoney(record.proposedSettlementAmount), PAGE_WIDTH - MARGIN, y, { align: 'right' })
+    y += 24
+  }
+
+  doc.setTextColor(DARK)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.text('CASE DETAILS', MARGIN, y)
+  y += 12
   rows.forEach(([label, value], index) => {
     const valueLines = doc.splitTextToSize(value, 300)
     const height = Math.max(32, valueLines.length * 13 + 15)
@@ -257,7 +302,7 @@ export function downloadDepositDisputeRecord(record: RecordData, references: Ref
   doc.setTextColor(GRAY)
   doc.setFontSize(8)
   doc.text(`Generated ${new Date().toLocaleString('en-IN')} | RentSphere`, MARGIN, PAGE_HEIGHT - 52)
-  doc.text('Read-only record supplied to the tenant.', PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 52, { align: 'right' })
+  doc.text('Tenant copy | Read-only | No signature required', PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 52, { align: 'right' })
   const safeName = tenantName.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'tenant'
   doc.save(`deposit-dispute-${safeName}-${id}.pdf`)
 }
