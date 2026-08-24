@@ -35,21 +35,31 @@ export function ModulePage({ config }: { config: ModuleConfig }) {
   const [rowsPerPage, setRowsPerPage] = useState(8)
 
   useEffect(() => {
-    if (config.resource !== 'properties') return
-
     const organizationId = String(form.organizationId ?? '')
-    const matchingOwners = (references.users ?? []).filter((user) =>
-      String(user.role ?? '').toUpperCase() === 'OWNER'
-      && String(user.organizationId ?? '') === organizationId,
-    )
-    const currentOwnerIsValid = matchingOwners.some((owner) => String(owner.id) === String(form.ownerId ?? ''))
-
-    if (matchingOwners.length === 1 && !currentOwnerIsValid) {
-      setField('ownerId', String(matchingOwners[0].id))
-    } else if ((!organizationId || !currentOwnerIsValid) && form.ownerId) {
-      setField('ownerId', '')
+    if (config.resource === 'properties') {
+      autoSelectRelatedRecord(
+        organizationId,
+        form.ownerId,
+        (references.users ?? []).filter((user) => String(user.role ?? '').toUpperCase() === 'OWNER'),
+        'ownerId',
+        setField,
+      )
+    } else if (config.resource === 'buildings') {
+      autoSelectRelatedRecord(organizationId, form.propertyId, references.properties ?? [], 'propertyId', setField)
+    } else if (config.resource === 'units') {
+      autoSelectRelatedRecord(organizationId, form.buildingId, references.buildings ?? [], 'buildingId', setField)
     }
-  }, [config.resource, form.organizationId, form.ownerId, references.users, setField])
+  }, [
+    config.resource,
+    form.organizationId,
+    form.ownerId,
+    form.propertyId,
+    form.buildingId,
+    references.users,
+    references.properties,
+    references.buildings,
+    setField,
+  ])
 
   const filterFields = useMemo(() => config.fields.filter((field) =>
     field.kind === 'select' && records.some((record) => record[field.name] != null && record[field.name] !== ''),
@@ -207,4 +217,23 @@ export function ModulePage({ config }: { config: ModuleConfig }) {
       </Stack>
     </Box>
   )
+}
+
+function autoSelectRelatedRecord(
+  organizationId: string,
+  currentValue: unknown,
+  candidates: Record<string, unknown>[],
+  fieldName: string,
+  setField: (name: string, value: string) => void,
+) {
+  const matchingRecords = candidates.filter((record) =>
+    String(record.organizationId ?? '') === organizationId,
+  )
+  const currentValueIsValid = matchingRecords.some((record) => String(record.id) === String(currentValue ?? ''))
+
+  if (matchingRecords.length === 1 && !currentValueIsValid) {
+    setField(fieldName, String(matchingRecords[0].id))
+  } else if ((!organizationId || !currentValueIsValid) && currentValue) {
+    setField(fieldName, '')
+  }
 }

@@ -10,6 +10,13 @@ function getRelationLabel(fieldName: string) {
   const labels: Record<string, string> = {
     organizationId: 'Organization',
     ownerId: 'Owner',
+    propertyId: 'Property',
+    buildingId: 'Building',
+    unitId: 'Unit',
+    tenantId: 'Tenant',
+    userId: 'User',
+    agreementId: 'Agreement',
+    invoiceId: 'Invoice',
   }
   if (labels[fieldName]) return labels[fieldName]
   return fieldName
@@ -63,8 +70,13 @@ export function ModuleField({
         && (!form.organizationId || String(item.organizationId) === String(form.organizationId)),
       )
     }
-    if (field.name === 'buildingId' && form.propertyId) {
-      return options.filter((item) => String(item.propertyId) === String(form.propertyId))
+    if (field.name === 'buildingId') {
+      if (form.propertyId) {
+        return options.filter((item) => String(item.propertyId) === String(form.propertyId))
+      }
+      if (form.organizationId) {
+        return options.filter((item) => String(item.organizationId) === String(form.organizationId))
+      }
     }
     if (field.name === 'unitId' && form.buildingId) {
       return options.filter((item) => String(item.buildingId) === String(form.buildingId))
@@ -226,4 +238,3 @@ function getMinDateString() {
   const day = String(today.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
-

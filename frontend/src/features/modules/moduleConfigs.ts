@@ -51,8 +51,8 @@ export const moduleConfigs: ModuleConfig[] = [
     description: 'Buildings inside a property.',
     tableColumns: ['imageUrl', 'name', 'floors', 'propertyId', 'organizationId'],
     fields: [
-      { name: 'organizationId', label: 'Organization ID', ...uuid },
-      { name: 'propertyId', label: 'Property ID', ...uuid },
+      { name: 'organizationId', label: 'Organization', required: true, ...uuid },
+      { name: 'propertyId', label: 'Property', required: true, ...uuid },
       { name: 'name', label: 'Name', required: true },
       { name: 'floors', label: 'Floors', kind: 'number' },
       { name: 'imageUrl', label: 'Building image', kind: 'image', full: true },
@@ -64,8 +64,8 @@ export const moduleConfigs: ModuleConfig[] = [
     description: 'Rentable units and their availability.',
     tableColumns: ['imageUrl', 'unitNumber', 'rentAmount', 'status', 'buildingId'],
     fields: [
-      { name: 'organizationId', label: 'Organization ID', ...uuid },
-      { name: 'buildingId', label: 'Building ID', ...uuid },
+      { name: 'organizationId', label: 'Organization', required: true, ...uuid },
+      { name: 'buildingId', label: 'Building', required: true, ...uuid },
       { name: 'unitNumber', label: 'Unit number', required: true },
       { name: 'rentAmount', label: 'Rent amount', kind: 'number', required: true },
       { name: 'status', label: 'Status', kind: 'select', options: ['AVAILABLE', 'OCCUPIED', 'MAINTENANCE'] },
