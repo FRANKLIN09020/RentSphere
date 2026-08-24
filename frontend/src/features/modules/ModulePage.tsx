@@ -73,12 +73,19 @@ export function ModulePage({ config }: { config: ModuleConfig }) {
   const visibleFields = useMemo(
     () => config.fields.filter((field) => {
       if (isRecordIdField(field.name)) return false
+      if (session?.role === 'TENANT' && config.resource === 'rent-increases') {
+        return field.name === 'tenantResponse' || field.name === 'status'
+      }
       if (!editing && field.name === 'organizationId' && session?.organizationId && config.resource !== 'organizations') {
         return false
       }
       return true
-    }),
-    [config.fields, editing, session?.organizationId, config.resource],
+    }).map((field) => session?.role === 'TENANT'
+      && config.resource === 'rent-increases'
+      && field.name === 'status'
+      ? { ...field, options: ['ACCEPTED', 'DISPUTED'] }
+      : field),
+    [config.fields, editing, session?.organizationId, session?.role, config.resource],
   )
 
   const canCreate = canCreateModule(session?.role, config.resource)

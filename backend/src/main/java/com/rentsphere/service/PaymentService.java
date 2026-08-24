@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.rentsphere.entity.Payment;
 import com.rentsphere.entity.PaymentStatus;
 import com.rentsphere.repository.PaymentRepository;
+import com.rentsphere.repository.InvoiceRepository;
 import com.rentsphere.security.SecurityUtils;
 
 @Service
@@ -28,11 +29,14 @@ public class PaymentService extends BaseCrudService<Payment> {
 
     private final PaymentRepository paymentRepository;
     private final NotificationService notificationService;
+    private final InvoiceRepository invoiceRepository;
 
-    public PaymentService(PaymentRepository paymentRepository, NotificationService notificationService) {
+    public PaymentService(PaymentRepository paymentRepository, NotificationService notificationService,
+            InvoiceRepository invoiceRepository) {
         super(paymentRepository, "Payment");
         this.paymentRepository = paymentRepository;
         this.notificationService = notificationService;
+        this.invoiceRepository = invoiceRepository;
     }
 
     @Override
@@ -97,7 +101,7 @@ public class PaymentService extends BaseCrudService<Payment> {
     /** Notification delivery is secondary and must not roll back a verified payment. */
     private void notifyPaymentResult(Payment payment, boolean successful) {
         try {
-            notificationService.notifyOrganization(
+            notificationService.notifyOrganizationStaff(
                     payment.getOrganizationId(),
                     successful ? "Rent payment received" : "Payment failed",
                     "Payment of " + payment.getAmount() + (successful
@@ -105,6 +109,16 @@ public class PaymentService extends BaseCrudService<Payment> {
                             : " could not be completed."),
                     successful ? "PAYMENT_SUCCESS" : "PAYMENT_FAILED",
                     "/payments");
+            if (payment.getInvoiceId() != null) {
+                invoiceRepository.findById(payment.getInvoiceId()).ifPresent(invoice ->
+                        notificationService.notifyTenant(invoice.getTenantId(),
+                                successful ? "Payment confirmed" : "Payment failed",
+                                successful
+                                        ? "Your rent payment of " + payment.getAmount() + " was confirmed. Your invoice is ready to download."
+                                        : "Your payment of " + payment.getAmount() + " failed. Open Payments to try again.",
+                                successful ? "PAYMENT_CONFIRMED" : "PAYMENT_ACTION_REQUIRED",
+                                "/payments"));
+            }
         } catch (RuntimeException exception) {
             log.warn("Payment {} was saved but its notification could not be delivered", payment.getId(), exception);
         }

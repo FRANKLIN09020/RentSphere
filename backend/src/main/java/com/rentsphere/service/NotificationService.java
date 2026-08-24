@@ -10,6 +10,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.rentsphere.dto.NotificationResponse;
 import com.rentsphere.entity.Notification;
 import com.rentsphere.repository.NotificationRepository;
+import com.rentsphere.repository.TenantRepository;
 import com.rentsphere.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 public class NotificationService {
     private final NotificationRepository repository;
     private final UserRepository userRepository;
+    private final TenantRepository tenantRepository;
     private final Map<String, Set<SseEmitter>> subscribers = new ConcurrentHashMap<>();
 
     @Transactional(readOnly = true)
@@ -38,6 +40,23 @@ public class NotificationService {
     public void notifyOrganization(UUID organizationId, String title, String detail, String type, String targetPath) {
         if (organizationId == null) return;
         userRepository.findByOrganizationId(organizationId).forEach(user -> notifyUser(organizationId, user.getEmail(), title, detail, type, targetPath));
+    }
+
+    @Transactional
+    public void notifyOrganizationStaff(UUID organizationId, String title, String detail, String type, String targetPath) {
+        if (organizationId == null) return;
+        userRepository.findByOrganizationId(organizationId).stream()
+                .filter(user -> user.getRole() != com.rentsphere.entity.UserRole.TENANT)
+                .forEach(user -> notifyUser(organizationId, user.getEmail(), title, detail, type, targetPath));
+    }
+
+    @Transactional
+    public void notifyTenant(UUID tenantId, String title, String detail, String type, String targetPath) {
+        if (tenantId == null) return;
+        tenantRepository.findById(tenantId)
+                .filter(tenant -> tenant.getUserId() != null)
+                .flatMap(tenant -> userRepository.findById(tenant.getUserId()))
+                .ifPresent(user -> notifyUser(user.getOrganizationId(), user.getEmail(), title, detail, type, targetPath));
     }
 
     @Transactional

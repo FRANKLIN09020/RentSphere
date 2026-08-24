@@ -49,7 +49,8 @@ public class ComplaintService extends BaseCrudService<Complaint> {
     public Complaint create(Complaint request) {
         applyAiTriage(request);
         Complaint saved = super.create(request);
-        notificationService.notifyOrganization(saved.getOrganizationId(), "New maintenance complaint", saved.getTitle() + " [" + saved.getAiPriority() + "]", "COMPLAINT_CREATED", "/complaints");
+        notificationService.notifyOrganizationStaff(saved.getOrganizationId(), "New maintenance complaint", saved.getTitle() + " [" + saved.getAiPriority() + "]", "COMPLAINT_CREATED", "/complaints");
+        notificationService.notifyTenant(saved.getTenantId(), "Complaint received", saved.getTitle() + " was submitted and is now " + saved.getStatus() + ".", "COMPLAINT_RECEIVED", "/complaints");
         return saved;
     }
 
@@ -76,7 +77,8 @@ public class ComplaintService extends BaseCrudService<Complaint> {
     @Transactional
     public Complaint update(UUID id, Complaint request) {
         Complaint saved = super.update(id, request);
-        notificationService.notifyOrganization(saved.getOrganizationId(), "Complaint updated", saved.getTitle() + " is now " + saved.getStatus(), "COMPLAINT_UPDATED", "/complaints");
+        notificationService.notifyOrganizationStaff(saved.getOrganizationId(), "Complaint updated", saved.getTitle() + " is now " + saved.getStatus(), "COMPLAINT_UPDATED", "/complaints");
+        notificationService.notifyTenant(saved.getTenantId(), "Complaint status updated", saved.getTitle() + " is now " + saved.getStatus() + ". Open Complaints for details.", "COMPLAINT_ACTION", "/complaints");
         return saved;
     }
 

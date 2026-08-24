@@ -11,7 +11,7 @@ const ownerModules = new Set(['properties', 'buildings', 'units', 'tenants', 'ag
 // discovery owns property/unit browsing, payments owns invoices, and approval
 // status owns request tracking. Disputes and rent administration remain staff
 // workflows instead of exposing management-style modules to tenants.
-const tenantModules = new Set(['payments', 'complaints'])
+const tenantModules = new Set(['payments', 'complaints', 'deposit-disputes', 'rent-increases'])
 
 const moduleOrder = [
   'organizations',
@@ -43,7 +43,7 @@ export function canCreateModule(role: UserRole | undefined, resource: string) {
   if (resource === 'payments') return false
   if (role === 'ADMIN') return adminModules.has(resource)
   if (role === 'OWNER') return ownerModules.has(resource)
-  if (role === 'TENANT') return resource === 'complaints'
+  if (role === 'TENANT') return resource === 'complaints' || resource === 'deposit-disputes'
   return false
 }
 
@@ -57,6 +57,7 @@ export function canManageModule(role: UserRole | undefined, resource: string) {
 }
 
 export function canEditModule(role: UserRole | undefined, resource: string) {
+  if (role === 'TENANT' && resource === 'rent-increases') return true
   return canManageModule(role, resource)
 }
 
