@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import axios from 'axios'
 import { Alert, Box, Button, Card, Chip, CircularProgress, Divider, Grid, IconButton, MenuItem, Stack, TablePagination, TextField, Tooltip, Typography } from '@mui/material'
 import { getErrorMessage, http } from '../../shared/api/http'
 import { useAuth } from '../../shared/auth/useAuth'
@@ -79,6 +80,12 @@ export function PaymentsPage() {
       setNotice('Payment attempt removed successfully.')
       await loadData()
     } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        setPaymentToDelete(null)
+        setNotice('This payment attempt was already removed. The list has been refreshed.')
+        await loadData()
+        return
+      }
       setError(getErrorMessage(err))
     } finally {
       setDeleting(false)
