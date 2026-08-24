@@ -8,6 +8,8 @@ $ErrorActionPreference = 'Stop'
 $word = $null
 $document = $null
 $frontDocument = $null
+$diagramDirectory = "D:\RentalFamily\docs\report-diagrams"
+$script:diagramAssetIndex = 0
 
 function Clean-Text([string]$text) {
     $clean = $text -replace '`([^`]*)`', '$1'
@@ -29,6 +31,63 @@ function Shade-Cell($cell, [int]$color, [bool]$bold = $false) {
     $cell.Range.Font.Name = 'Times New Roman'
     $cell.Range.Font.Size = 9
     $cell.VerticalAlignment = 1
+}
+
+function Escape-Xml([string]$value) {
+    return [System.Security.SecurityElement]::Escape($value)
+}
+
+function New-SvgText([string]$value, [double]$x, [double]$centerY, [int]$maxChars, [int]$fontSize, [string]$color) {
+    $words = $value.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)
+    $lines = New-Object System.Collections.Generic.List[string]
+    $current = ''
+    foreach ($word in $words) {
+        $candidate = if ($current) { "$current $word" } else { $word }
+        if ($candidate.Length -gt $maxChars -and $current) {
+            $lines.Add($current)
+            $current = $word
+        } else {
+            $current = $candidate
+        }
+    }
+    if ($current) { $lines.Add($current) }
+    if ($lines.Count -gt 3) {
+        $tail = ($lines.GetRange(2, $lines.Count - 2) -join ' ')
+        while ($lines.Count -gt 2) { $lines.RemoveAt(2) }
+        $lines.Add($tail)
+    }
+    $lineHeight = $fontSize + 5
+    $firstY = $centerY - (($lines.Count - 1) * $lineHeight / 2)
+    $spans = New-Object System.Collections.Generic.List[string]
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        $line = Escape-Xml $lines[$i]
+        $y = $firstY + $i * $lineHeight
+        $spans.Add("<tspan x='$x' y='$y'>$line</tspan>")
+    }
+    return "<text x='$x' y='$centerY' text-anchor='middle' font-family='Arial, sans-serif' font-size='$fontSize' font-weight='700' fill='$color'>" + ($spans -join '') + '</text>'
+}
+
+function Insert-DiagramSvg([string]$svg, [string]$caption) {
+    if (-not (Test-Path -LiteralPath $diagramDirectory)) {
+        New-Item -ItemType Directory -Path $diagramDirectory -Force | Out-Null
+    }
+    $script:diagramAssetIndex++
+    $svgPath = Join-Path $diagramDirectory ("diagram-{0:D2}.svg" -f $script:diagramAssetIndex)
+    [System.IO.File]::WriteAllText($svgPath, $svg, (New-Object System.Text.UTF8Encoding($false)))
+    $selection.ParagraphFormat.Alignment = 1
+    $picture = $selection.InlineShapes.AddPicture($svgPath, $false, $true, $selection.Range)
+    $picture.LockAspectRatio = -1
+    if ($picture.Width -gt 485) { $picture.Width = 485 }
+    $selection.SetRange($picture.Range.End, $picture.Range.End)
+    $selection.TypeParagraph()
+    $selection.Style = 'Caption'
+    $selection.Font.Name = 'Times New Roman'
+    $selection.Font.Size = 10
+    $selection.Font.Italic = $true
+    $selection.TypeText($caption)
+    $selection.TypeParagraph()
+    $selection.Style = 'Normal'
+    $selection.ParagraphFormat.Alignment = 3
 }
 
 function Add-MarkdownTable([System.Collections.Generic.List[string]]$lines) {
@@ -59,60 +118,72 @@ function Add-MarkdownTable([System.Collections.Generic.List[string]]$lines) {
 }
 
 function Add-FlowDiagram([string[]]$steps, [string]$caption) {
-    $selection.ParagraphFormat.Alignment = 1
-    $selection.Font.Bold = $true
-    $selection.Font.Size = 10
-    $selection.TypeText($caption)
-    $selection.TypeParagraph()
-    $columns = $steps.Count * 2 - 1
-    $table = $document.Tables.Add($selection.Range, 1, $columns)
-    $table.Borders.Enable = 0
-    $table.AllowAutoFit = $true
+    $width = 1200
+    $height = 300
+    $margin = 28
+    $gap = 42
+    $boxWidth = [Math]::Floor(($width - 2 * $margin - ($steps.Count - 1) * $gap) / $steps.Count)
+    $boxHeight = 112
+    $y = 86
+    $elements = New-Object System.Collections.Generic.List[string]
+    $elements.Add('<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#1d4ed8"/></marker><filter id="shadow"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity="0.16"/></filter></defs>')
+    $elements.Add('<rect width="1200" height="300" rx="22" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>')
     for ($i = 0; $i -lt $steps.Count; $i++) {
-        $cellIndex = $i * 2 + 1
-        $cell = $table.Cell(1, $cellIndex)
-        $cell.Range.Text = $steps[$i]
-        Shade-Cell $cell 15198183 $true
-        $cell.Range.ParagraphFormat.Alignment = 1
+        $x = $margin + $i * ($boxWidth + $gap)
         if ($i -lt $steps.Count - 1) {
-            $arrow = $table.Cell(1, $cellIndex + 1)
-            $arrow.Range.Text = '->'
-            $arrow.Range.Font.Size = 15
-            $arrow.Range.Font.Bold = $true
-            $arrow.Range.Font.Color = 12611584
-            $arrow.Range.ParagraphFormat.Alignment = 1
-            $arrow.VerticalAlignment = 1
+            $x1 = $x + $boxWidth
+            $x2 = $x1 + $gap - 7
+            $lineY = $y + $boxHeight / 2
+            $elements.Add("<line x1='$x1' y1='$lineY' x2='$x2' y2='$lineY' stroke='#1d4ed8' stroke-width='5' marker-end='url(#arrow)'/>")
         }
+        $fill = if ($i -eq 0) { '#dbeafe' } elseif ($i -eq $steps.Count - 1) { '#dcfce7' } else { '#ffffff' }
+        $stroke = if ($i -eq $steps.Count - 1) { '#16a34a' } else { '#2563eb' }
+        $elements.Add("<rect x='$x' y='$y' width='$boxWidth' height='$boxHeight' rx='16' fill='$fill' stroke='$stroke' stroke-width='3' filter='url(#shadow)'/>")
+        $textX = $x + $boxWidth / 2
+        $textY = $y + $boxHeight / 2 + 5
+        $maxChars = [Math]::Max(10, [Math]::Floor($boxWidth / 10))
+        $elements.Add((New-SvgText $steps[$i] $textX $textY $maxChars 18 '#0f172a'))
     }
-    $selection.SetRange($table.Range.End, $table.Range.End)
-    $selection.TypeParagraph()
-    $selection.ParagraphFormat.Alignment = 3
+    $svg = "<svg xmlns='http://www.w3.org/2000/svg' width='$width' height='$height' viewBox='0 0 $width $height'>" + ($elements -join '') + '</svg>'
+    Insert-DiagramSvg $svg $caption
 }
 
 function Add-MatrixDiagram([string[][]]$rows, [string]$caption) {
-    $selection.ParagraphFormat.Alignment = 1
-    $selection.Font.Bold = $true
-    $selection.Font.Size = 10
-    $selection.TypeText($caption)
-    $selection.TypeParagraph()
+    $width = 1200
     $columns = ($rows | ForEach-Object { $_.Count } | Measure-Object -Maximum).Maximum
-    $table = $document.Tables.Add($selection.Range, $rows.Count, $columns)
-    $table.Borders.Enable = 1
-    $table.AllowAutoFit = $true
+    $margin = 32
+    $gapX = 54
+    $gapY = 20
+    $boxWidth = [Math]::Floor(($width - 2 * $margin - ($columns - 1) * $gapX) / $columns)
+    $boxHeight = 74
+    $height = 70 + $rows.Count * ($boxHeight + $gapY)
+    $elements = New-Object System.Collections.Generic.List[string]
+    $elements.Add('<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker><filter id="shadow"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.13"/></filter></defs>')
+    $elements.Add("<rect width='$width' height='$height' rx='22' fill='#f8fafc' stroke='#cbd5e1' stroke-width='2'/>")
     for ($r = 0; $r -lt $rows.Count; $r++) {
+        $y = 30 + $r * ($boxHeight + $gapY)
         for ($c = 0; $c -lt $columns; $c++) {
+            $x = $margin + $c * ($boxWidth + $gapX)
             $value = if ($c -lt $rows[$r].Count) { $rows[$r][$c] } else { '' }
-            $cell = $table.Cell($r + 1, $c + 1)
-            $cell.Range.Text = $value
             $isHeader = $r -eq 0
-            Shade-Cell $cell $(if ($isHeader) { 12611584 } elseif (($r + $c) % 2 -eq 0) { 15921906 } else { 16777215 }) $isHeader
-            $cell.Range.ParagraphFormat.Alignment = 1
-            if ($isHeader) { $cell.Range.Font.Color = 16777215 }
+            $fill = if ($isHeader) { '#16324f' } elseif ($c -eq 1) { '#dbeafe' } else { '#ffffff' }
+            $stroke = if ($isHeader) { '#16324f' } elseif ($c -eq 1) { '#2563eb' } else { '#94a3b8' }
+            $textColor = if ($isHeader) { '#ffffff' } else { '#0f172a' }
+            $elements.Add("<rect x='$x' y='$y' width='$boxWidth' height='$boxHeight' rx='13' fill='$fill' stroke='$stroke' stroke-width='2.5' filter='url(#shadow)'/>")
+            $textX = $x + $boxWidth / 2
+            $textY = $y + $boxHeight / 2 + 4
+            $maxChars = [Math]::Max(16, [Math]::Floor($boxWidth / 9))
+            $elements.Add((New-SvgText $value $textX $textY $maxChars 16 $textColor))
+            if (-not $isHeader -and $c -lt $columns - 1) {
+                $x1 = $x + $boxWidth
+                $x2 = $x1 + $gapX - 7
+                $lineY = $y + $boxHeight / 2
+                $elements.Add("<line x1='$x1' y1='$lineY' x2='$x2' y2='$lineY' stroke='#64748b' stroke-width='3.5' marker-end='url(#arrow)'/>")
+            }
         }
     }
-    $selection.SetRange($table.Range.End, $table.Range.End)
-    $selection.TypeParagraph()
-    $selection.ParagraphFormat.Alignment = 3
+    $svg = "<svg xmlns='http://www.w3.org/2000/svg' width='$width' height='$height' viewBox='0 0 $width $height'>" + ($elements -join '') + '</svg>'
+    Insert-DiagramSvg $svg $caption
 }
 
 function Add-TechnicalDiagram([int]$index) {
