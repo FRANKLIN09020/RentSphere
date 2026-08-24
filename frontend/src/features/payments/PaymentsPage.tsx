@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Box, Button, Card, Chip, CircularProgress, Divider, Grid, MenuItem, Stack, TablePagination, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, Chip, CircularProgress, Divider, Grid, IconButton, MenuItem, Stack, TablePagination, TextField, Tooltip, Typography } from '@mui/material'
 import { getErrorMessage, http } from '../../shared/api/http'
 import { useAuth } from '../../shared/auth/useAuth'
 import { formatDate, formatMoney } from '../../shared/utils/format'
 import { downloadTenantPaidInvoice } from '../../shared/utils/downloadDocument'
-import { DownloadIcon } from '../../shared/ui/AppIcons'
+import { DeleteIcon, DownloadIcon } from '../../shared/ui/AppIcons'
+import { ConfirmDialog } from '../../shared/ui/ConfirmDialog'
 import type { RecordData } from '../modules/types'
 import { PayNowButton } from './PayNowButton'
 
@@ -31,6 +32,9 @@ export function PaymentsPage() {
   const [invoicePage, setInvoicePage] = useState(0)
   const [paymentPage, setPaymentPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(6)
+  const [paymentToDelete, setPaymentToDelete] = useState<RecordData | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [notice, setNotice] = useState('')
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -64,6 +68,22 @@ export function PaymentsPage() {
     const timer = window.setTimeout(() => void loadData(), 0)
     return () => window.clearTimeout(timer)
   }, [loadData])
+
+  const deletePayment = async () => {
+    if (!paymentToDelete) return
+    setDeleting(true)
+    setError('')
+    try {
+      await http.delete(`/payments/${String(paymentToDelete.id)}`)
+      setPaymentToDelete(null)
+      setNotice('Payment attempt removed successfully.')
+      await loadData()
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const payableInvoices = invoices.filter((invoice) => PAYABLE_STATUSES.has(String(invoice.status ?? '').toUpperCase()))
   const outstandingTotal = payableInvoices.reduce((total, invoice) => total + Number(invoice.amount ?? 0), 0)
@@ -127,6 +147,7 @@ export function PaymentsPage() {
         </Stack>
 
         {error && <Alert severity="error">{error}</Alert>}
+        {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
         {loading && <Card sx={{ p: 4 }}><Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', justifyContent: 'center' }}><CircularProgress size={22} /><Typography>Loading payments…</Typography></Stack></Card>}
 
         {!loading && <>
@@ -206,7 +227,21 @@ export function PaymentsPage() {
                           <Typography variant="body2" color="text.secondary" noWrap>{getPaymentMessage(payment)}</Typography>
                         </Box>
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: 'flex-end' }}>
-                          <Chip size="small" variant="outlined" label={String(payment.status)} color={payment.status === 'SUCCESS' ? 'success' : payment.status === 'FAILED' ? 'error' : 'warning'} />
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                            <Chip size="small" variant="outlined" label={String(payment.status)} color={payment.status === 'SUCCESS' ? 'success' : payment.status === 'FAILED' ? 'error' : 'warning'} />
+                            {session?.role === 'ADMIN' && !successful && !payment.recordedFromInvoice && (
+                              <Tooltip title="Delete payment attempt">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  aria-label={`Delete ${String(payment.status).toLowerCase()} payment attempt`}
+                                  onClick={() => setPaymentToDelete(payment)}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Stack>
                           {session?.role === 'TENANT' && successful && invoice && receiptContext && (
                             <Button
                               size="small"
@@ -233,6 +268,16 @@ export function PaymentsPage() {
           </Grid>
         </>}
       </Stack>
+      <ConfirmDialog
+        open={Boolean(paymentToDelete)}
+        title="Delete payment attempt?"
+        description="This removes the pending or failed attempt from transaction history. Completed payments and paid invoices are always preserved."
+        confirmLabel="Delete attempt"
+        destructive
+        busy={deleting}
+        onConfirm={() => void deletePayment()}
+        onClose={() => setPaymentToDelete(null)}
+      />
     </Box>
   )
 }
