@@ -69,6 +69,16 @@ export function useModuleData(config: ModuleConfig) {
             const response = await http.get<RecordData>(`/tenants/me`)
             return ['tenants', [response.data]] as const
           }
+          const isOwnOrganization = resource === 'organizations'
+            && session?.role === 'TENANT'
+            && Boolean(session.organizationId)
+          if (isOwnOrganization) {
+            const response = await http.get<RecordData>('/auth/me')
+            return ['organizations', [{
+              id: session.organizationId,
+              name: response.data.organizationName ?? 'My organization',
+            }]] as const
+          }
           const response = await http.get<RecordData[]>(`/${resource}`)
           return [resource, response.data] as const
         }),

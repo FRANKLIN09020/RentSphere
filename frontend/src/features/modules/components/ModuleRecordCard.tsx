@@ -378,6 +378,11 @@ function getRecordSubtitle(record: RecordData, config: ModuleConfig, references:
   if (config.resource === 'organizations') {
     return [record.email, record.phone].map((value) => String(value ?? '').trim()).filter(Boolean).join(' | ') || 'Contact details pending'
   }
+  if (config.resource === 'complaints') {
+    const organization = getReferenceLabel('organizationId', record.organizationId, references)
+    const unit = getReferenceLabel('unitId', record.unitId, references)
+    return [organization, unit].filter(Boolean).join(' | ') || 'Organization and unit pending'
+  }
   return config.tableColumns
     .filter((column) => !isRecordIdField(column))
     .slice(0, 2)

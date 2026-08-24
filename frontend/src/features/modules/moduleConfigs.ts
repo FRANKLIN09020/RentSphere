@@ -135,7 +135,7 @@ export const moduleConfigs: ModuleConfig[] = [
     resource: 'complaints',
     title: 'Complaints & Maintenance',
     description: 'Complaint management and maintenance requests.',
-    tableColumns: ['title', 'status', 'aiPriority', 'aiCategory', 'unitId'],
+    tableColumns: ['title', 'organizationId', 'status', 'aiPriority', 'aiCategory', 'unitId'],
     fields: [
       { name: 'organizationId', label: 'Organization ID', ...uuid },
       { name: 'tenantId', label: 'Tenant ID', ...uuid },
