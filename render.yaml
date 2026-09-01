@@ -1,0 +1,63 @@
+services:
+  - type: web
+    name: rentsphere-api
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /swagger/index.html
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SERVER_PORT
+        value: 8080
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_DRIVER
+        value: org.postgresql.Driver
+      - key: JPA_DATABASE_PLATFORM
+        value: org.hibernate.dialect.PostgreSQLDialect
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MS
+        value: 36000000
+      - key: JWT_COOKIE_SECURE
+        value: true
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: MAIL_ENABLED
+        value: false
+      - key: MAIL_HOST
+        value: localhost
+      - key: MAIL_PORT
+        value: 1025
+      - key: MAIL_USERNAME
+        value: unused
+      - key: MAIL_PASSWORD
+        value: unused
+      - key: MAIL_SMTP_AUTH
+        value: false
+      - key: MAIL_SMTP_STARTTLS
+        value: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: rentsphere-images
+      - key: SUPABASE_MAX_IMAGE_BYTES
+        value: 5242880
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: openai/gpt-oss-20b
