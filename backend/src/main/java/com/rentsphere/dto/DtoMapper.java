@@ -11,6 +11,7 @@ import com.rentsphere.entity.Invoice;
 import com.rentsphere.entity.Organization;
 import com.rentsphere.entity.Payment;
 import com.rentsphere.entity.Property;
+import com.rentsphere.entity.PropertyType;
 import com.rentsphere.entity.RentIncrease;
 import com.rentsphere.entity.Tenant;
 import com.rentsphere.entity.Unit;
@@ -100,6 +101,9 @@ public class DtoMapper {
                 .address(entity.getAddress())
                 .city(entity.getCity())
                 .state(entity.getState())
+                .propertyType(entity.getPropertyType())
+                .latitude(entity.getLatitude())
+                .longitude(entity.getLongitude())
                 .amenities(entity.getAmenities())
                 .imageUrl(entity.getImageUrl())
                 .createdAt(entity.getCreatedAt())
@@ -116,6 +120,9 @@ public class DtoMapper {
                 .address(request.getAddress())
                 .city(request.getCity())
                 .state(request.getState())
+                .propertyType(request.getPropertyType() == null ? PropertyType.APARTMENT : request.getPropertyType())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
                 .amenities(request.getAmenities())
                 .imageUrl(request.getImageUrl())
                 .build();
@@ -129,6 +136,9 @@ public class DtoMapper {
         entity.setAddress(request.getAddress());
         entity.setCity(request.getCity());
         entity.setState(request.getState());
+        entity.setPropertyType(request.getPropertyType() == null ? PropertyType.APARTMENT : request.getPropertyType());
+        entity.setLatitude(request.getLatitude());
+        entity.setLongitude(request.getLongitude());
         entity.setAmenities(request.getAmenities());
         entity.setImageUrl(request.getImageUrl());
     }

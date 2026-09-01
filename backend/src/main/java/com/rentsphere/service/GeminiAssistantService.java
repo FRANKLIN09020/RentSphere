@@ -2,6 +2,8 @@ package com.rentsphere.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +36,11 @@ public class GeminiAssistantService {
     }
 
     public AiAssistantResponse generateReply(AiAssistantRequest request, String personalContext) {
+        String personalDataReply = buildPersonalFinanceReply(request, personalContext);
+        if (personalDataReply != null) {
+            return new AiAssistantResponse(personalDataReply, false, "rentsphere-records");
+        }
+
         if (apiKey == null || apiKey.isBlank()) {
             return new AiAssistantResponse(
                     "AI API key is not configured yet. Please set app.ai.groq.api-key in the backend environment.",
@@ -77,6 +84,44 @@ public class GeminiAssistantService {
             logger.error("Groq API call failed", ex);
             return buildFallbackReply(request, ex.getMessage());
         }
+    }
+
+    private String buildPersonalFinanceReply(AiAssistantRequest request, String personalContext) {
+        String message = request.message() == null ? "" : request.message().toLowerCase();
+        boolean asksForOwnData = message.matches(".*\\b(my|current|invoice|invoices|amount due|outstanding)\\b.*")
+                && message.matches(".*\\b(rent|invoice|invoices|payment|due)\\b.*");
+        if (!asksForOwnData) return null;
+
+        String context = personalContext == null ? "" : personalContext;
+        Matcher agreement = Pattern.compile("Agreements:\\R - status ([^|\\r\\n]+).*?\\| rent ([^\\r\\n]+)")
+                .matcher(context);
+        Matcher invoiceSection = Pattern.compile("Invoices:\\R([\\s\\S]*?)(?:Payments:|Complaints:|Rent increases:|Deposit disputes:|Booking/visit requests|$)")
+                .matcher(context);
+
+        StringBuilder reply = new StringBuilder();
+        if (agreement.find()) {
+            reply.append("Your current agreement rent is ₹")
+                    .append(agreement.group(2).trim())
+                    .append(" and the agreement status is ")
+                    .append(agreement.group(1).trim()).append(".");
+        }
+
+        if (invoiceSection.find()) {
+            Matcher invoices = Pattern.compile(" - amount ([^|\\r\\n]+) \\| due ([^|\\r\\n]+) \\| status ([^\\r\\n]+)")
+                    .matcher(invoiceSection.group(1));
+            while (invoices.find()) {
+                if (!reply.isEmpty()) reply.append(" ");
+                reply.append("Invoice: ₹").append(invoices.group(1).trim())
+                        .append(", due ").append(invoices.group(2).trim())
+                        .append(", status ").append(invoices.group(3).trim()).append(".");
+            }
+        }
+
+        if (!reply.isEmpty()) return reply.toString();
+        if (context.contains("Tenant profile:")) {
+            return "Your tenant profile is available, but no unit, rental agreement, or invoice is currently linked to your account. Please ask the administrator to assign your approved unit and create the agreement.";
+        }
+        return "No tenant profile, rental agreement, or invoice is currently linked to your login.";
     }
 
     AiAssistantResponse buildFallbackReply(AiAssistantRequest request, String errorDetail) {

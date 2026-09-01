@@ -3,6 +3,8 @@ package com.rentsphere.entity;
 import java.util.UUID;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -36,6 +38,14 @@ public class Property extends BaseEntity {
     private String city;
 
     private String state;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private PropertyType propertyType = PropertyType.APARTMENT;
+
+    private Double latitude;
+
+    private Double longitude;
 
     @jakarta.persistence.Column(columnDefinition = "TEXT")
     private String amenities;
