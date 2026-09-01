@@ -15,6 +15,12 @@ spring:
       hibernate:
         format_sql: false
 
+  # Run the idempotent compatibility migration before Hibernate validates or
+  # updates legacy Supabase tables.
+  sql:
+    init:
+      mode: always
+
 app:
   security:
     jwt:
