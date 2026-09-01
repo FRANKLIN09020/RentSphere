@@ -50,7 +50,12 @@ export function getErrorMessage(error: unknown) {
     if (!error.response) {
       return `Cannot reach the RentSphere API at ${API_BASE_URL}. Make sure the backend is running.`
     }
-    if (error.response.status === 401) return 'Your session has expired. Please sign in again.'
+    if (error.response.status === 401) {
+      if (error.config?.url === '/auth/login') {
+        return data?.message ?? data?.error ?? 'Invalid email or password'
+      }
+      return 'Your session has expired. Please sign in again.'
+    }
     if (error.response.status === 403) return 'Your role does not have permission to perform this action.'
     return data?.message ?? data?.error ?? `Request failed (${error.response.status})`
   }
